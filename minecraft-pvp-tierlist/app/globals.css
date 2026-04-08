@@ -1,29 +1,35 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap");
 
-@theme {
-  --color-bg:        #080c08;
-  --color-surface:   #0f150f;
-  --color-surface2:  #161e16;
-  --color-border:    #1f2e1f;
-  --color-border2:   #2a3d2a;
-  --color-green:     #4ade80;
+:root {
+  --color-bg: #080c08;
+  --color-surface: #0f150f;
+  --color-surface2: #161e16;
+  --color-border: #1f2e1f;
+  --color-border2: #2a3d2a;
+  --color-green: #4ade80;
   --color-green-dim: #22c55e;
-  --color-green-glow:#16a34a;
-  --color-gold:      #fbbf24;
-  --color-red:       #f87171;
-  --color-muted:     #4a5e4a;
-  --color-text:      #d4e8d4;
-  --color-text-dim:  #7a9a7a;
+  --color-green-glow: #16a34a;
+  --color-gold: #fbbf24;
+  --color-red: #f87171;
+  --color-muted: #4a5e4a;
+  --color-text: #d4e8d4;
+  --color-text-dim: #7a9a7a;
 
-  --font-pixel: 'VT323', monospace;
-  --font-mono:  'Share Tech Mono', monospace;
-  --font-body:  'Rajdhani', sans-serif;
+  --font-pixel: "VT323", monospace;
+  --font-mono: "Share Tech Mono", monospace;
+  --font-body: "Rajdhani", sans-serif;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+}
 
 body {
   background-color: var(--color-bg);
@@ -32,175 +38,4 @@ body {
   font-size: 16px;
   line-height: 1.5;
   min-height: 100vh;
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(74,222,128,0.08) 0%, transparent 60%),
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 31px,
-      rgba(74,222,128,0.015) 31px,
-      rgba(74,222,128,0.015) 32px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent,
-      transparent 31px,
-      rgba(74,222,128,0.015) 31px,
-      rgba(74,222,128,0.015) 32px
-    );
 }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--color-surface); }
-::-webkit-scrollbar-thumb { background: var(--color-border2); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
-
-/* Typography helpers */
-.font-pixel { font-family: var(--font-pixel); letter-spacing: 0.05em; }
-.font-mono  { font-family: var(--font-mono); }
-.font-body  { font-family: var(--font-body); }
-
-/* Glow effects */
-.glow-green {
-  text-shadow: 0 0 8px rgba(74,222,128,0.6), 0 0 20px rgba(74,222,128,0.3);
-}
-.glow-gold {
-  text-shadow: 0 0 8px rgba(251,191,36,0.6), 0 0 20px rgba(251,191,36,0.3);
-}
-.shadow-green {
-  box-shadow: 0 0 0 1px rgba(74,222,128,0.2), 0 4px 24px rgba(74,222,128,0.08);
-}
-.shadow-green-strong {
-  box-shadow: 0 0 0 1px rgba(74,222,128,0.4), 0 0 20px rgba(74,222,128,0.15);
-}
-
-/* Card base */
-.card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-}
-.card:hover {
-  border-color: var(--color-border2);
-}
-
-/* Btn variants */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 20px;
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 0.875rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  border-radius: 2px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border: 1px solid transparent;
-  white-space: nowrap;
-}
-.btn-primary {
-  background: var(--color-green);
-  color: #080c08;
-  border-color: var(--color-green);
-}
-.btn-primary:hover {
-  background: #86efac;
-  box-shadow: 0 0 16px rgba(74,222,128,0.4);
-}
-.btn-ghost {
-  background: transparent;
-  color: var(--color-text);
-  border-color: var(--color-border2);
-}
-.btn-ghost:hover {
-  border-color: var(--color-green);
-  color: var(--color-green);
-}
-.btn-danger {
-  background: transparent;
-  color: var(--color-red);
-  border-color: rgba(248,113,113,0.3);
-}
-.btn-danger:hover {
-  background: rgba(248,113,113,0.1);
-  border-color: var(--color-red);
-}
-.btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* Input base */
-.input {
-  width: 100%;
-  background: var(--color-surface2);
-  border: 1px solid var(--color-border);
-  border-radius: 2px;
-  padding: 10px 14px;
-  color: var(--color-text);
-  font-family: var(--font-body);
-  font-size: 0.9375rem;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.input::placeholder { color: var(--color-muted); }
-.input:focus {
-  border-color: var(--color-green);
-  box-shadow: 0 0 0 2px rgba(74,222,128,0.1);
-}
-select.input option {
-  background: var(--color-surface2);
-}
-
-/* Badge */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border-radius: 2px;
-  font-family: var(--font-mono);
-}
-.badge-green  { background: rgba(74,222,128,0.12); color: var(--color-green); border: 1px solid rgba(74,222,128,0.2); }
-.badge-gold   { background: rgba(251,191,36,0.12);  color: var(--color-gold);  border: 1px solid rgba(251,191,36,0.2); }
-.badge-red    { background: rgba(248,113,113,0.12); color: var(--color-red);   border: 1px solid rgba(248,113,113,0.2); }
-.badge-muted  { background: rgba(74,94,74,0.2);     color: var(--color-muted); border: 1px solid var(--color-border); }
-
-/* Table */
-.data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-.data-table th {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  padding: 10px 16px;
-  text-align: left;
-  border-bottom: 1px solid var(--color-border);
-}
-.data-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(31,46,31,0.5);
-  color: var(--color-text);
-}
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: var(--color-surface2); }
-
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes pulse-green {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.3); }
-  50%       { box-shadow: 0 0 0 6px rgba(74,222,128,0); }
-}
-.animate-in { animation: fadeIn 0.25s ease forwards; }
