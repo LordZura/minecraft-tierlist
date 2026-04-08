@@ -1,31 +1,172 @@
-import { useEffect, useState } from 'react';
+'use client';
+
+import { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
+type Player = {
+  id: string;
+  username: string;
+  rank: number;
+  total_points: number;
+  total_wins: number;
+  total_losses: number;
+  fight_wins: number;
+  fight_losses: number;
+  challenge_wins: number;
+  challenge_losses: number;
+};
+
+const PVP_TYPES = ['crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow'] as const;
+type SortKey = 'rank' | 'total_points' | 'total_wins' | 'challenge_wins';
+
 export default function RankingTable() {
-  const [players, setPlayers] = useState<any[]>([]);
+  const [players, setPlayers]   = useState<Player[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState('');
+  const [sortBy, setSortBy]     = useState<SortKey>('rank');
+  const [pvpFilter, setPvpFilter] = useState('');
 
   useEffect(() => {
-    supabase.from('leaderboard').select('*').then(({ data }) => setPlayers(data ?? []));
+    supabase
+      .from('leaderboard')
+      .select('id,username,rank,total_points,total_wins,total_losses,fight_wins,fight_losses,challenge_wins,challenge_losses')
+      .then(({ data }) => {
+        setPlayers((data as Player[]) ?? []);
+        setLoading(false);
+      });
   }, []);
 
+  const filtered = useMemo(() => {
+    let list = [...players];
+    if (search) list = list.filter(p => p.username.toLowerCase().includes(search.toLowerCase()));
+    list.sort((a, b) => {
+      if (sortBy === 'rank') return a.rank - b.rank;
+      return (b[sortBy] ?? 0) - (a[sortBy] ?? 0);
+    });
+    return list;
+  }, [players, search, sortBy]);
+
+  const rankLabel = (rank: number) => {
+    if (rank === 1) return { label: '🥇', color: '#fbbf24' };
+    if (rank === 2) return { label: '🥈', color: '#9ca3af' };
+    if (rank === 3) return { label: '🥉', color: '#cd7c35' };
+    return { label: `#${rank}`, color: 'var(--color-muted)' };
+  };
+
+  const winRate = (w: number, l: number) => {
+    const total = w + l;
+    if (!total) return '—';
+    return `${Math.round((w / total) * 100)}%`;
+  };
+
   return (
-    <table className="min-w-full table-auto bg-white shadow rounded">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Player</th>
-          <th>Total Points</th>
-        </tr>
-      </thead>
-      <tbody>
-        {players.map((p, i) => (
-          <tr key={p.username}>
-            <td>{i + 1}</td>
-            <td>{p.username}</td>
-            <td>{p.total_points}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div>
+      {/* Filters bar */}
+      <div className="card" style={{ padding: '16px 20px', marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          className="input"
+          type="text"
+          placeholder="Search players…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ maxWidth: 220, padding: '7px 12px' }}
+        />
+        <select className="input" value={sortBy} onChange={e => setSortBy(e.target.value as SortKey)} style={{ maxWidth: 200, padding: '7px 12px' }}>
+          <option value="rank">Sort: Rank</option>
+          <option value="total_points">Sort: Total Points</option>
+          <option value="total_wins">Sort: Total Wins</option>
+          <option value="challenge_wins">Sort: Challenge Wins</option>
+        </select>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--color-muted)', letterSpacing: '0.1em' }}>
+            {filtered.length} PLAYERS
+          </span>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="card" style={{ overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-muted)' }}>
+            <span className="font-pixel" style={{ fontSize: '1.5rem' }}>Loading…</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: 60, textAlign: 'center' }}>
+            <p className="font-pixel" style={{ fontSize: '1.5rem', color: 'var(--color-muted)' }}>No players yet</p>
+            <p style={{ color: 'var(--color-muted)', marginTop: 8, fontSize: '0.875rem' }}>Be the first to register and log a fight.</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Player</th>
+                  <th>Points</th>
+                  <th>Wins</th>
+                  <th>Losses</th>
+                  <th>W/R</th>
+                  <th>Challenges</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(p => {
+                  const r = rankLabel(p.rank);
+                  return (
+                    <tr key={p.id}>
+                      <td>
+                        <span
+                          className="font-mono"
+                          style={{ color: r.color, fontWeight: 700, fontSize: p.rank <= 3 ? '1.1rem' : '0.85rem' }}
+                        >
+                          {r.label}
+                        </span>
+                      </td>
+                      <td>
+                        <Link
+                          href={`/profile/${p.username}`}
+                          style={{ color: 'var(--color-green)', textDecoration: 'none', fontWeight: 600, fontSize: '0.95rem' }}
+                        >
+                          {p.username}
+                        </Link>
+                      </td>
+                      <td>
+                        <span
+                          className="font-mono"
+                          style={{
+                            color: p.total_points >= 0 ? 'var(--color-green)' : 'var(--color-red)',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {p.total_points >= 0 ? '+' : ''}{p.total_points}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ color: 'var(--color-green)' }}>{p.total_wins}</span>
+                      </td>
+                      <td>
+                        <span style={{ color: 'var(--color-red)' }}>{p.total_losses}</span>
+                      </td>
+                      <td>
+                        <span className="font-mono" style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>
+                          {winRate(p.total_wins, p.total_losses)}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ color: 'var(--color-green)', marginRight: 4 }}>{p.challenge_wins}W</span>
+                        <span style={{ color: 'var(--color-text-dim)', fontSize: '0.85rem' }}>
+                          / {p.challenge_losses}L
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
