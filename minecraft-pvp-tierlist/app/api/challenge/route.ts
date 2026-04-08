@@ -1,42 +1,76 @@
-import { supabase } from '@/lib/supabaseClient';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseRouteClient } from "@/lib/supabaseRouteClient";
 
 export async function POST(req: NextRequest) {
-  const { challenged } = await req.json();
-  const user = await supabase.auth.getUser();
+  const supabase = await createSupabaseRouteClient();
 
-  // Check cooldown: SELECT for last 'completed' challenge
-  const { data: recent } = await supabase
-    .from('challenges')
-    .select('completed_at')
-    .eq('challenger', user.id)
-    .eq('challenged', challenged)
-    .eq('status', 'completed')
-    .order('completed_at', { ascending: false })
-    .limit(1);
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-  if (recent && recent[0] && new Date(recent[0].completed_at) > new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)) {
-    return NextResponse.json({ error: 'Challenge cooldown active.' }, { status: 400 });
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Create challenge
-  const { data, error } = await supabase
-    .from('challenges')
+  const { challenged } = await req.json();
+
+  if (!challenged) {
+    return NextResponse.json({ error: "Missing challenged player." }, { status: 400 });
+  }
+
+  if (challenged === user.id) {
+    return NextResponse.json({ error: "You cannot challenge yourself." }, { status: 400 });
+  }
+
+  const { data: recent, error: recentError } = await supabase
+    .from("challenges")
+    .select("completed_at")
+    .eq("challenger", user.id)
+    .eq("challenged", challenged)
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false })
+    .limit(1);
+
+  if (recentError) {
+    return NextResponse.json({ error: recentError.message }, { status: 400 });
+  }
+
+  const lastCompleted = recent?.[0]?.completed_at;
+  if (
+    lastCompleted &&
+    new Date(lastCompleted) > new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+  ) {
+    return NextResponse.json(
+      { error: "Challenge cooldown active." },
+      { status: 400 }
+    );
+  }
+
+  const { data: challenge, error } = await supabase
+    .from("challenges")
     .insert({
       challenger: user.id,
       challenged,
-      status: 'pending'
+      status: "pending",
     })
-    .select();
+    .select()
+    .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error || !challenge) {
+    return NextResponse.json({ error: error?.message ?? "Failed to create challenge." }, { status: 400 });
+  }
 
-  await supabase.from('notifications').insert({
+  const { error: notifError } = await supabase.from("notifications").insert({
     user_id: challenged,
-    type: 'challenge_request',
-    related_id: data[0].id,
-    message: `You have a new challenge request.`,
+    type: "challenge_request",
+    related_id: challenge.id,
+    message: "You have a new challenge request.",
   });
 
-  return NextResponse.json({ status: 'ok', challenge: data[0] });
+  if (notifError) {
+    return NextResponse.json({ error: notifError.message }, { status: 400 });
+  }
+
+  return NextResponse.json({ status: "ok", challenge });
 }
