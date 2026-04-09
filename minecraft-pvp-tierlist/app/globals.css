@@ -1,41 +1,27 @@
-@import "tailwindcss";
-@import url("https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap");
+/* app/globals.css */
 
-:root {
-  --color-bg: #080c08;
-  --color-surface: #0f150f;
-  --color-surface2: #161e16;
-  --color-border: #1f2e1f;
-  --color-border2: #2a3d2a;
-  --color-green: #4ade80;
-  --color-green-dim: #22c55e;
-  --color-green-glow: #16a34a;
-  --color-gold: #fbbf24;
-  --color-red: #f87171;
-  --color-muted: #4a5e4a;
-  --color-text: #d4e8d4;
-  --color-text-dim: #7a9a7a;
-
-  --font-pixel: "VT323", monospace;
-  --font-mono: "Share Tech Mono", monospace;
-  --font-body: "Rajdhani", sans-serif;
-}
-
-*,
-*::before,
-*::after {
+/* minimal reset */
+* {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-html {
-  scroll-behavior: smooth;
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  font-family: var(--font-body);
-  font-size: 16px;
-  line-height: 1.5;
-  min-height: 100vh;
+  background: #080c08;
+  color: #d4e8d4;
+  font-family: system-ui, sans-serif;
+}
+
+/* simple helpers */
+.card {
+  background: #0f150f;
+  border: 1px solid #1f2e1f;
+  padding: 12px;
+  border-radius: 4px;
 }

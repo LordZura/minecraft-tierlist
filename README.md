@@ -139,3 +139,167 @@ The project is only considered complete when all of the following are implemente
 15. Completion rule
 - The project is not finished unless the full flow works:
   register → log in → add match/challenge → approve → ranking updates → profile updates → admin can manage everything.
+
+
+
+  -----------------------------------------------------------------------------------------------------------
+
+
+  original prompt:
+
+  Build a clean, organized, and fully functional Minecraft PvP tier list web app using Supabase for the backend, database, and authentication/storage where appropriate.
+
+Goal
+Create a personal ranking website where players can register using their Minecraft username only. Do not require Microsoft/Mojang authentication for accounts. Username-based registration should be enough, so even launcher-based users can join.
+
+Use Supabase servers for:
+- database
+- authentication
+- row-level security
+- server-side data handling
+- notifications/data storage as needed
+
+Main idea
+The site tracks PvP results between registered players and uses those results to build a ranking system. It should feel modern, easy to use, and simple to update after matches.
+
+Main features
+
+1) Player registration and profiles
+- Players can register with:
+  - Minecraft username
+  - password
+  - optional avatar/profile info
+- Each player gets a personal profile page.
+- Profile page should show:
+  - total wins
+  - total losses
+  - score/ranking points
+  - wins and losses by PvP type
+  - match history
+  - challenge history
+  - players they are “better than” based on challenge results
+
+2) PvP match logging
+- Players can log fights only against registered players.
+- When logging a fight, they select:
+  - opponent
+  - PvP type
+  - winner
+  - score/result
+- PvP types:
+  - crystal
+  - sword
+  - axe
+  - UHC
+  - manhunt
+  - mace
+  - SMP
+  - cart
+  - bow
+- Logged fights should not become public or counted until the opponent confirms them.
+- Opponent must be able to accept or reject the fight log.
+- Admin can bypass this verification.
+
+3) Challenge system
+- Players can challenge another registered player.
+- If the challenge is accepted, the two players play a set of 10 matches.
+- This is meant to determine who is better overall.
+- The player who wins the majority of the 10 matches is considered the winner of the challenge.
+- Winning 6 or more out of 10 should count as a challenge win, but all match results should still be stored.
+- Challenge results should affect ranking, but not as heavily as the main fight log.
+- A player who loses a challenge can only challenge that same opponent again after 3 days.
+
+4) Notifications / approvals
+- Create a notifications page.
+- Players should see pending fight logs and pending challenge requests.
+- They can accept or reject entries.
+- Admin can approve, edit, or bypass everything.
+
+5) Ranking page
+- Create a main ranking page that lists all registered players.
+- Show for each player:
+  - rank position
+  - total wins
+  - wins by PvP type
+  - total score
+  - challenge record
+- Ranking should be sortable/filterable.
+- Clicking a player should open their profile and show:
+  - stats
+  - history
+  - opponents they defeated in challenges
+  - people they are ranked above
+
+6) Admin panel
+- Admin login should be simple for now.
+- Use password: password
+- Admin can:
+  - edit player stats
+  - approve/reject logs and challenges
+  - modify rankings
+  - remove or correct bad data
+  - bypass opponent approval
+  - manage almost everything in the app
+
+Ranking logic
+- Fight logs should give decent ranking points.
+- Challenge wins should give some ranking points, but less than regular logged fights.
+- A challenge win should have more meaning than a single fight log.
+- Store all results per PvP type.
+- Keep the ranking system easy to adjust later.
+
+Pages to build
+- Home / landing page
+- Register / login page
+- Ranking page
+- Player profile page
+- Add fight log page
+- Challenge page
+- Notifications page
+- Admin panel
+- Optional: match history / leaderboard detail pages
+
+UI / design requirements
+- Clean, modern, organized layout
+- Responsive design for desktop and mobile
+- Clear navigation
+- Use cards, tables, badges, and filters where useful
+- Make the app easy to scan and easy to use
+
+Data model requirements
+Create models for:
+- users / players
+- fight logs
+- challenges
+- challenge matches
+- notifications
+- ranking points
+- admin actions
+
+Supabase implementation requirements
+- Use Supabase as the primary backend.
+- Design the schema for Supabase Postgres.
+- Use Supabase Auth for login/session management if appropriate.
+- Use row-level security policies correctly.
+- Keep server actions secure.
+- Store uploaded assets in Supabase Storage if needed.
+- Structure the app so the frontend reads and writes to Supabase cleanly.
+- Make sure admin-only actions are protected properly.
+
+Important behavior
+- Nothing should count until verified, unless admin overrides it.
+- Keep a full history of all results.
+- Prevent duplicate or invalid challenge submissions.
+- Enforce the 3-day cooldown after losing a challenge to the same opponent.
+- Make the code modular and easy to expand later.
+
+Implementation notes
+- Build this as a complete working app, not just UI.
+- Include backend logic, database structure, and frontend pages.
+- Keep the code clean, maintainable, and well organized.
+- Use sensible defaults and placeholder styling if needed.
+- Add comments only where necessary.
+- Prefer simple, practical solutions over overengineering.
+
+Deliverable
+Generate the project structure, main pages, Supabase schema, RLS policies, and core logic for the app so it can be used as a functional MVP.
