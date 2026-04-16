@@ -1,33 +1,37 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { getSupabaseFriendlyError } from '@/lib/supabaseError';
+
+function toAuthEmail(username: string) {
+  return `${username.trim().toLowerCase()}@mcpvp.com`;
+}
 
 export default function RegisterPage() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm]   = useState('');
-  const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
-
-  const validateUsername = (u: string) => /^[a-zA-Z0-9_]{3,16}$/.test(u);
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
-    if (!validateUsername(username)) {
-      setError('Username must be 3–16 characters: letters, numbers, underscores only.');
+    const cleanUsername = username.trim().toLowerCase();
+    if (!cleanUsername) {
+      setError('Enter a username.');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+
+    if (password.length < 4) {
+      setError('Password must be at least 4 characters.');
       return;
     }
+
     if (password !== confirm) {
       setError('Passwords do not match.');
       return;
@@ -35,124 +39,82 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      // Check username availability
-      const { data: existing } = await supabase
-        .from('users')
-        .select('id')
-        .ilike('username', username)
-        .single();
-
-      if (existing) {
-        setError('That username is already taken.');
-        setLoading(false);
-        return;
-      }
-
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email: `${username.toLowerCase()}@mcpvp.local`,
+        email: toAuthEmail(cleanUsername),
         password,
         options: {
-          data: { username: username.toLowerCase() },
+          data: { username: cleanUsername },
         },
       });
 
-      if (signUpError) throw signUpError;
-      if (!data.user) throw new Error('Registration failed.');
+      if (signUpError) {
+        throw signUpError;
+      }
 
-      // Profile is created by trigger; redirect
+      if (!data.user) {
+        throw new Error('Could not create account.');
+      }
+
       router.push('/rankings');
     } catch (err: any) {
-      setError(getSupabaseFriendlyError(err, 'Registration failed.'));
+      setError(err?.message || 'Could not create account.');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 56px)', padding: '40px 24px' }}>
-      <div className="card animate-in" style={{ width: '100%', maxWidth: 420, padding: 40 }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <h1 className="font-pixel glow-green" style={{ fontSize: '2.2rem', color: 'var(--color-green)', marginBottom: 8 }}>
-            Register
-          </h1>
-          <p style={{ color: 'var(--color-text-dim)', fontSize: '0.9rem' }}>
-            Create your PvP identity
-          </p>
-        </div>
+    <div style={{ maxWidth: 420, margin: '48px auto', padding: 16 }}>
+      <h1>Register</h1>
+      <p>Create your account</p>
 
-        <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label className="font-mono" style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: 6 }}>
-              Minecraft Username
-            </label>
-            <input
-              className="input"
-              type="text"
-              placeholder="Steve"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              required
-              autoComplete="username"
-            />
-            <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: 4 }}>
-              3–16 chars · letters, numbers, underscores
-            </p>
-          </div>
+      <form onSubmit={handleRegister} style={{ display: 'grid', gap: 12 }}>
+        <label>
+          Username
+          <input
+            className="input"
+            type="text"
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            required
+            autoComplete="username"
+          />
+        </label>
 
-          <div>
-            <label className="font-mono" style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: 6 }}>
-              Password
-            </label>
-            <input
-              className="input"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-            />
-          </div>
+        <label>
+          Password
+          <input
+            className="input"
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
+        </label>
 
-          <div>
-            <label className="font-mono" style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: 6 }}>
-              Confirm Password
-            </label>
-            <input
-              className="input"
-              type="password"
-              placeholder="••••••••"
-              value={confirm}
-              onChange={e => setConfirm(e.target.value)}
-              required
-              autoComplete="new-password"
-            />
-          </div>
+        <label>
+          Confirm password
+          <input
+            className="input"
+            type="password"
+            value={confirm}
+            onChange={e => setConfirm(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
+        </label>
 
-          {error && (
-            <div style={{ padding: '10px 14px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 2 }}>
-              <p style={{ color: 'var(--color-red)', fontSize: '0.875rem' }}>{error}</p>
-            </div>
-          )}
+        {error && <p style={{ color: 'var(--color-red)' }}>{error}</p>}
 
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={loading}
-            style={{ marginTop: 8, padding: '12px', width: '100%', fontSize: '0.95rem' }}
-          >
-            {loading ? 'Creating account…' : 'Create Account'}
-          </button>
-        </form>
+        <button type="submit" className="btn btn-primary" disabled={loading}>
+          {loading ? 'Creating account...' : 'Create account'}
+        </button>
+      </form>
 
-        <p style={{ textAlign: 'center', marginTop: 24, fontSize: '0.875rem', color: 'var(--color-text-dim)' }}>
-          Already have an account?{' '}
-          <Link href="/login" style={{ color: 'var(--color-green)', textDecoration: 'none', fontWeight: 600 }}>
-            Login
-          </Link>
-        </p>
-      </div>
+      <p style={{ marginTop: 16 }}>
+        Already have an account? <Link href="/login">Login</Link>
+      </p>
     </div>
   );
 }
