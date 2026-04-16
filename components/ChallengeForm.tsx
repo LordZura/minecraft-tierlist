@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getSessionUser } from '@/lib/authSession';
 
 export function ChallengeForm() {
   const router = useRouter();
@@ -15,10 +16,9 @@ export function ChallengeForm() {
   const [success, setSuccess]   = useState('');
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/login'); return; }
-      setMyId(data.user.id);
-    });
+    const user = getSessionUser();
+    if (!user) { router.push('/login'); return; }
+    setMyId(user.id);
   }, []);
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export function ChallengeForm() {
     try {
       const res = await fetch('/api/challenge', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-user-id': myId ?? '' },
         body: JSON.stringify({ challenged: opponent }),
       });
       const data = await res.json();

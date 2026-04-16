@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { getSessionUser } from "@/lib/authSession";
 
 type Notification = {
   id: string;
@@ -22,14 +23,13 @@ export function NotificationList() {
   const [acting, setActing] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) {
-        router.push("/login");
-        return;
-      }
-      setMyId(data.user.id);
-      loadNotifications(data.user.id);
-    });
+    const user = getSessionUser();
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    setMyId(user.id);
+    loadNotifications(user.id);
   }, []);
 
   async function loadNotifications(userId: string) {
@@ -63,7 +63,7 @@ export function NotificationList() {
     try {
       const res = await fetch(`/api/fight-log/${action}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-user-id": myId ?? "" },
         body: JSON.stringify({ fight_log_id: fightLogId }),
       });
       const data = await res.json();
@@ -92,7 +92,7 @@ export function NotificationList() {
     try {
       const res = await fetch("/api/challenge/respond", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-user-id": myId ?? "" },
         body: JSON.stringify({ challenge_id: challengeId, action }),
       });
       const data = await res.json();

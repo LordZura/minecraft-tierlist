@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "@/lib/supabaseRouteClient";
+import { getRequestUser } from "@/lib/routeAuth";
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseRouteClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await getRequestUser(req);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { fight_log_id } = await req.json();
   if (!fight_log_id) return NextResponse.json({ error: "Missing fight_log_id." }, { status: 400 });
