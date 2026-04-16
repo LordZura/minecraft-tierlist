@@ -104,6 +104,10 @@ export function NotificationList() {
       setNotifications((prev) =>
         prev.map((n) => (n.id === notifId ? { ...n, read: true } : n)),
       );
+
+      if (action === "accept") {
+        router.push(`/challenge/${challengeId}`);
+      }
     } catch (err: any) {
       alert(err.message);
     } finally {
