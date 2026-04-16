@@ -11,7 +11,7 @@ The project is only considered complete when all of the following are implemente
 - Admin login exists and is protected.
 
 2. Supabase integration
-- Supabase is used as the backend for database, auth, and storage where needed.
+- Supabase is used as the backend database.
 - All data is stored in Supabase Postgres.
 - Row-level security is enabled and configured correctly.
 - Admin-only actions are protected.
@@ -279,7 +279,7 @@ Create models for:
 Supabase implementation requirements
 - Use Supabase as the primary backend.
 - Design the schema for Supabase Postgres.
-- Use Supabase Auth for login/session management if appropriate.
+- Use the built-in username/password API routes and local session storage.
 - Use row-level security policies correctly.
 - Keep server actions secure.
 - Store uploaded assets in Supabase Storage if needed.

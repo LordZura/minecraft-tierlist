@@ -3,11 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
-
-function toAuthEmail(username: string) {
-  return `${username.trim().toLowerCase()}@mcpvp.com`;
-}
+import { setSessionUser } from '@/lib/authSession';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -39,22 +35,16 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: toAuthEmail(cleanUsername),
-        password,
-        options: {
-          data: { username: cleanUsername },
-        },
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: cleanUsername, password }),
       });
 
-      if (signUpError) {
-        throw signUpError;
-      }
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload?.error || 'Could not create account.');
 
-      if (!data.user) {
-        throw new Error('Could not create account.');
-      }
-
+      setSessionUser(payload.user);
       router.push('/rankings');
     } catch (err: any) {
       setError(err?.message || 'Could not create account.');
@@ -71,38 +61,17 @@ export default function RegisterPage() {
       <form onSubmit={handleRegister} style={{ display: 'grid', gap: 12 }}>
         <label>
           Username
-          <input
-            className="input"
-            type="text"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            required
-            autoComplete="username"
-          />
+          <input className="input" type="text" value={username} onChange={e => setUsername(e.target.value)} required autoComplete="username" />
         </label>
 
         <label>
           Password
-          <input
-            className="input"
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-          />
+          <input className="input" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" />
         </label>
 
         <label>
           Confirm password
-          <input
-            className="input"
-            type="password"
-            value={confirm}
-            onChange={e => setConfirm(e.target.value)}
-            required
-            autoComplete="new-password"
-          />
+          <input className="input" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required autoComplete="new-password" />
         </label>
 
         {error && <p style={{ color: 'var(--color-red)' }}>{error}</p>}

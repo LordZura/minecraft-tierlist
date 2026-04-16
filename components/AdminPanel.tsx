@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getSessionUser } from '@/lib/authSession';
 
 type FightLog = {
   id: string;
@@ -54,13 +55,11 @@ export function AdminPanel() {
   const [msg, setMsg]             = useState('');
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) { router.push('/login'); return; }
-      const { data: profile } = await supabase.from('users').select('is_admin').eq('id', data.user.id).single();
-      if (!profile?.is_admin) { setIsAdmin(false); return; }
-      setIsAdmin(true);
-      loadAll();
-    });
+    const user = getSessionUser();
+    if (!user) { router.push('/login'); return; }
+    if (!user.is_admin) { setIsAdmin(false); return; }
+    setIsAdmin(true);
+    loadAll();
   }, []);
 
   async function loadAll() {
@@ -79,7 +78,7 @@ export function AdminPanel() {
   }
 
   async function logAction(action: string, targetType: string, targetId: string, details?: object) {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = getSessionUser();
     if (!user) return;
     await supabase.from('admin_logs').insert({ admin_id: user.id, action, target_type: targetType, target_id: targetId, details });
   }

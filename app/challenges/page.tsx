@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getSessionUser } from '@/lib/authSession';
 import { ChallengeForm } from '@/components/ChallengeForm';
 
 type Challenge = {
@@ -27,11 +28,10 @@ export default function ChallengePage() {
   const [showForm, setShowForm]     = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/login'); return; }
-      setMyId(data.user.id);
-      loadChallenges(data.user.id);
-    });
+    const user = getSessionUser();
+    if (!user) { router.push('/login'); return; }
+    setMyId(user.id);
+    loadChallenges(user.id);
   }, []);
 
   async function loadChallenges(userId: string) {

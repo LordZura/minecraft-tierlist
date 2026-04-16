@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import { getSessionUser } from '@/lib/authSession';
 
 const PVP_TYPES = ['crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow'];
 
@@ -47,17 +48,17 @@ export default function ChallengeDetailPage() {
     let alive = true;
 
     const init = async () => {
-        const { data } = await supabase.auth.getUser();
+        const user = getSessionUser();
 
         if (!alive) return;
 
-        if (!data.user) {
-        router.push('/login');
-        return;
+        if (!user) {
+          router.push('/login');
+          return;
         }
 
-        setMyId(data.user.id);
-        await loadChallenge(data.user.id);
+        setMyId(user.id);
+        await loadChallenge(user.id);
     };
 
     init();
@@ -97,7 +98,7 @@ export default function ChallengeDetailPage() {
     try {
       const res = await fetch('/api/challenge/match', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-user-id': myId ?? '' },
         body: JSON.stringify({ challenge_id: id, winner_id: winner, pvp_type: pvpType }),
       });
       const data = await res.json();

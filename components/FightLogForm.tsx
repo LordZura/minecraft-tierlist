@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getSessionUser } from '@/lib/authSession';
 
 const PVP_TYPES = ['crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow'];
 
@@ -21,17 +22,10 @@ export function FightLogForm() {
   const [playerSearch, setPlayerSearch] = useState('');
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) { router.push('/login'); return; }
-      setMyId(data.user.id);
-
-      const { data: profile } = await supabase
-        .from('users')
-        .select('username')
-        .eq('id', data.user.id)
-        .single();
-      if (profile) setMyUsername(profile.username);
-    });
+    const user = getSessionUser();
+    if (!user) { router.push('/login'); return; }
+    setMyId(user.id);
+    setMyUsername(user.username);
   }, []);
 
   useEffect(() => {
@@ -63,7 +57,7 @@ export function FightLogForm() {
       const winnerId = winner === 'me' ? myId : opponent;
       const res = await fetch('/api/fight-log', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-user-id': myId ?? '' },
         body: JSON.stringify({ player2: opponent, pvp_type: pvpType, winner: winnerId, score }),
       });
       const data = await res.json();
