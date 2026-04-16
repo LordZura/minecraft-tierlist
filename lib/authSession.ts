@@ -4,30 +4,28 @@ export type SessionUser = {
   is_admin: boolean;
 };
 
-const SESSION_KEY = 'mcpvp_session_user';
+const STORAGE_KEY = 'mct_user';
+
+export function setSessionUser(user: SessionUser) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+}
 
 export function getSessionUser(): SessionUser | null {
   if (typeof window === 'undefined') return null;
-  const raw = window.localStorage.getItem(SESSION_KEY);
+
+  const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
 
   try {
-    const parsed = JSON.parse(raw) as SessionUser;
-    if (!parsed?.id || !parsed?.username) return null;
-    return parsed;
+    return JSON.parse(raw) as SessionUser;
   } catch {
+    localStorage.removeItem(STORAGE_KEY);
     return null;
   }
 }
 
-export function setSessionUser(user: SessionUser) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-  window.dispatchEvent(new Event('auth-changed'));
-}
-
 export function clearSessionUser() {
   if (typeof window === 'undefined') return;
-  window.localStorage.removeItem(SESSION_KEY);
-  window.dispatchEvent(new Event('auth-changed'));
+  localStorage.removeItem(STORAGE_KEY);
 }

@@ -18,8 +18,19 @@ export default function RegisterPage() {
     setError('');
 
     const cleanUsername = username.trim().toLowerCase();
+
     if (!cleanUsername) {
       setError('Enter a username.');
+      return;
+    }
+
+    if (cleanUsername.length < 3) {
+      setError('Username must be at least 3 characters.');
+      return;
+    }
+
+    if (!/^[a-z0-9_]+$/.test(cleanUsername)) {
+      setError('Username can only contain lowercase letters, numbers, and underscores.');
       return;
     }
 
@@ -34,6 +45,7 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
+
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
@@ -42,7 +54,10 @@ export default function RegisterPage() {
       });
 
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload?.error || 'Could not create account.');
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Could not create account.');
+      }
 
       setSessionUser(payload.user);
       router.push('/rankings');
@@ -61,17 +76,38 @@ export default function RegisterPage() {
       <form onSubmit={handleRegister} style={{ display: 'grid', gap: 12 }}>
         <label>
           Username
-          <input className="input" type="text" value={username} onChange={e => setUsername(e.target.value)} required autoComplete="username" />
+          <input
+            className="input"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            autoComplete="username"
+          />
         </label>
 
         <label>
           Password
-          <input className="input" type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" />
+          <input
+            className="input"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
         </label>
 
         <label>
           Confirm password
-          <input className="input" type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required autoComplete="new-password" />
+          <input
+            className="input"
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
         </label>
 
         {error && <p style={{ color: 'var(--color-red)' }}>{error}</p>}
