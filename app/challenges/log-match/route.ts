@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   const user = await getRequestUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { challenge_id, winner_id, pvp_type } = await req.json();
+  const { challenge_id, winner_id, pvp_type, score } = await req.json();
   if (!challenge_id || !winner_id || !pvp_type) {
     return NextResponse.json({ error: "Missing fields." }, { status: 400 });
   }
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     match_number: matchNumber,
     winner: winner_id,
     pvp_type,
+    score: typeof score === "string" ? score.trim() || null : null,
   });
 
   // Update win counts
