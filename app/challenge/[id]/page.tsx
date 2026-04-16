@@ -27,6 +27,7 @@ type Match = {
   match_number: number;
   winner: string;
   pvp_type: string;
+  score: string | null;
   created_at: string;
   winner_user?: { username: string };
 };
@@ -40,6 +41,7 @@ export default function ChallengeDetailPage() {
   const [loading, setLoading]       = useState(true);
   const [pvpType, setPvpType]       = useState('');
   const [winner, setWinner]         = useState('');
+  const [score, setScore]           = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]           = useState('');
   const [success, setSuccess]       = useState('');
@@ -99,12 +101,12 @@ export default function ChallengeDetailPage() {
       const res = await fetch('/api/challenge/match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': myId ?? '' },
-        body: JSON.stringify({ challenge_id: id, winner_id: winner, pvp_type: pvpType }),
+        body: JSON.stringify({ challenge_id: id, winner_id: winner, pvp_type: pvpType, score }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSuccess(`Match ${data.matchNumber} logged!`);
-      setPvpType(''); setWinner('');
+      setPvpType(''); setWinner(''); setScore('');
       loadChallenge(myId!);
     } catch (err: any) {
       setError(err.message);
@@ -204,6 +206,20 @@ export default function ChallengeDetailPage() {
 
             <div>
               <label className="font-mono" style={{ display: 'block', fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: 6 }}>
+                Score (optional)
+              </label>
+              <input
+                className="input"
+                type="text"
+                value={score}
+                onChange={e => setScore(e.target.value)}
+                placeholder="e.g. 3-1"
+                maxLength={32}
+              />
+            </div>
+
+            <div>
+              <label className="font-mono" style={{ display: 'block', fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: 6 }}>
                 Who Won?
               </label>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -246,6 +262,7 @@ export default function ChallengeDetailPage() {
                 <th>#</th>
                 <th>Winner</th>
                 <th>Type</th>
+                <th>Score</th>
                 <th>Date</th>
               </tr>
             </thead>
@@ -255,6 +272,7 @@ export default function ChallengeDetailPage() {
                   <td className="font-mono" style={{ color: 'var(--color-muted)', fontSize: '0.85rem' }}>{m.match_number}</td>
                   <td style={{ color: 'var(--color-green)', fontWeight: 600 }}>{(m.winner_user as any)?.username}</td>
                   <td><span className="badge badge-muted">{m.pvp_type}</span></td>
+                  <td className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>{m.score || '—'}</td>
                   <td className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>{new Date(m.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}

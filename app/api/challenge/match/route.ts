@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   const user = await getRequestUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { challenge_id, winner_id, pvp_type } = await req.json();
+  const { challenge_id, winner_id, pvp_type, score } = await req.json();
   if (!challenge_id || !winner_id || !pvp_type) return NextResponse.json({ error: "Missing fields." }, { status: 400 });
 
   const { data: challenge } = await supabase.from("challenges").select("*").eq("id", challenge_id).single();
@@ -20,7 +20,13 @@ export async function POST(req: NextRequest) {
   if ((matchCount ?? 0) >= 10) return NextResponse.json({ error: "All 10 matches already logged." }, { status: 400 });
 
   const matchNumber = (matchCount ?? 0) + 1;
-  await supabase.from("challenge_matches").insert({ challenge_id, match_number: matchNumber, winner: winner_id, pvp_type });
+  await supabase.from("challenge_matches").insert({
+    challenge_id,
+    match_number: matchNumber,
+    winner: winner_id,
+    pvp_type,
+    score: typeof score === "string" ? score.trim() || null : null,
+  });
 
   const isChallenger = winner_id === challenge.challenger;
   const updateField = isChallenger ? "challenger_wins" : "challenged_wins";
