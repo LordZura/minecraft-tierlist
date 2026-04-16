@@ -4,9 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { calcChallengePoints, calcFightLogPoints } from '@/lib/points';
-import { computeElo, PVP_TYPES, type EloEvent } from '@/utils/elo';
-
-type PvpType = (typeof PVP_TYPES)[number];
 
 type Player = {
   id: string;
@@ -24,23 +21,13 @@ type Player = {
   elo_by_type: Record<PvpType, number>;
 };
 
-type SortKey = 'rank' | 'total_points' | 'total_wins' | 'challenge_wins' | 'elo_overall' | 'elo_average';
-
-type OverrideRow = {
-  user_id: string;
-  total_points_override: number | null;
-  total_wins_override: number | null;
-  total_losses_override: number | null;
-  elo_overall_override: number | null;
-  elo_average_override: number | null;
-  [key: string]: number | string | null;
-};
+type SortKey = 'rank' | 'total_points' | 'total_wins' | 'challenge_wins';
 
 export default function RankingTable() {
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<SortKey>('rank');
+  const [players, setPlayers]   = useState<Player[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState('');
+  const [sortBy, setSortBy]     = useState<SortKey>('rank');
 
   useEffect(() => {
     loadRankings();
@@ -53,17 +40,13 @@ export default function RankingTable() {
       { data: users, error: usersError },
       { data: fights, error: fightsError },
       { data: challenges, error: challengesError },
-      { data: challengeMatches, error: challengeMatchesError },
-      { data: overrides, error: overridesError },
     ] = await Promise.all([
       supabase.from('users').select('id, username'),
-      supabase.from('fight_logs').select('player1, player2, winner, pvp_type, created_at').eq('is_confirmed', true).eq('rejected', false),
+      supabase.from('fight_logs').select('player1, player2, winner').eq('is_confirmed', true).eq('rejected', false),
       supabase.from('challenges').select('challenger, challenged, winner, status').eq('status', 'completed'),
-      supabase.from('challenge_matches').select('winner, pvp_type, created_at, challenge:challenges!challenge_matches_challenge_id_fkey(challenger, challenged)'),
-      supabase.from('user_admin_overrides').select('*'),
     ]);
 
-    if (usersError || fightsError || challengesError || challengeMatchesError || overridesError || !users) {
+    if (usersError || fightsError || challengesError || !users) {
       setPlayers([]);
       setLoading(false);
       return;
@@ -83,9 +66,6 @@ export default function RankingTable() {
         fight_losses: 0,
         challenge_wins: 0,
         challenge_losses: 0,
-        elo_overall: 1000,
-        elo_average: 1000,
-        elo_by_type: Object.fromEntries(PVP_TYPES.map((t) => [t, 1000])) as Record<PvpType, number>,
       });
     });
 
@@ -108,7 +88,8 @@ export default function RankingTable() {
       if (!challenge.winner) return;
 
       const winner = stats.get(challenge.winner);
-      const loserId = challenge.winner === challenge.challenger ? challenge.challenged : challenge.challenger;
+      const loserId =
+        challenge.winner === challenge.challenger ? challenge.challenged : challenge.challenger;
       const loser = stats.get(loserId);
       if (!winner || !loser) return;
 
@@ -121,64 +102,8 @@ export default function RankingTable() {
       loser.total_points += calcChallengePoints(false);
     });
 
-    const eloEvents: EloEvent[] = [];
-    (fights ?? []).forEach((f) => {
-      eloEvents.push({
-        playerA: f.player1,
-        playerB: f.player2,
-        winner: f.winner,
-        pvp_type: f.pvp_type as PvpType,
-        created_at: f.created_at,
-      });
-    });
-
-    (challengeMatches ?? []).forEach((m: any) => {
-      const c = m.challenge;
-      if (!c?.challenger || !c?.challenged) return;
-      eloEvents.push({
-        playerA: c.challenger,
-        playerB: c.challenged,
-        winner: m.winner,
-        pvp_type: m.pvp_type as PvpType,
-        created_at: m.created_at,
-      });
-    });
-
-    const elo = computeElo(users.map((u) => u.id), eloEvents);
-
-    users.forEach((u) => {
-      const p = stats.get(u.id);
-      if (!p) return;
-      p.elo_overall = elo[u.id]?.overall ?? 1000;
-      p.elo_average = elo[u.id]?.average ?? 1000;
-      p.elo_by_type = elo[u.id]?.byType ?? p.elo_by_type;
-    });
-
-    const overrideMap: Record<string, OverrideRow> = {};
-    (overrides as OverrideRow[] | null)?.forEach((row) => {
-      overrideMap[row.user_id] = row;
-    });
-
-    users.forEach((u) => {
-      const p = stats.get(u.id);
-      const o = overrideMap[u.id];
-      if (!p || !o) return;
-
-      p.total_points = o.total_points_override ?? p.total_points;
-      p.total_wins = o.total_wins_override ?? p.total_wins;
-      p.total_losses = o.total_losses_override ?? p.total_losses;
-      p.elo_overall = o.elo_overall_override ?? p.elo_overall;
-      p.elo_average = o.elo_average_override ?? p.elo_average;
-      PVP_TYPES.forEach((t) => {
-        const key = `elo_${t}_override`;
-        const value = o[key];
-        if (typeof value === 'number') p.elo_by_type[t] = value;
-      });
-    });
-
     const ranked = [...stats.values()].sort((a, b) => {
       if (b.total_points !== a.total_points) return b.total_points - a.total_points;
-      if (b.elo_overall !== a.elo_overall) return b.elo_overall - a.elo_overall;
       if (b.total_wins !== a.total_wins) return b.total_wins - a.total_wins;
       return a.username.localeCompare(b.username);
     });

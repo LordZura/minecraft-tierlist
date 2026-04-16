@@ -136,26 +136,6 @@ create table public.admin_logs (
 
 create index admin_logs_admin_idx on public.admin_logs(admin_id, created_at desc);
 
--- ADMIN OVERRIDES (manual stat/elo control)
-create table public.user_admin_overrides (
-  user_id uuid primary key references public.users(id) on delete cascade,
-  total_points_override integer,
-  total_wins_override integer,
-  total_losses_override integer,
-  elo_overall_override integer,
-  elo_average_override integer,
-  elo_crystal_override integer,
-  elo_sword_override integer,
-  elo_axe_override integer,
-  elo_uhc_override integer,
-  elo_manhunt_override integer,
-  elo_mace_override integer,
-  elo_smp_override integer,
-  elo_cart_override integer,
-  elo_bow_override integer,
-  updated_at timestamptz not null default now()
-);
-
 -- Auto-updated timestamps for users
 create or replace function public.set_updated_at()
 returns trigger
@@ -230,4 +210,3 @@ alter table public.challenges disable row level security;
 alter table public.challenge_matches disable row level security;
 alter table public.notifications disable row level security;
 alter table public.admin_logs disable row level security;
-alter table public.user_admin_overrides disable row level security;
