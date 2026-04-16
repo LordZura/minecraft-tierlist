@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const supabase = await createSupabaseRouteClient();
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username')
+      .select('id, username, is_admin')
       .eq('username', username)
       .eq('password', password)
       .maybeSingle();
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid username or password.' }, { status: 401 });
     }
 
-    return NextResponse.json({ ok: true, user: { ...user, is_admin: user.username === "admin" } });
+    return NextResponse.json({ ok: true, user });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Could not log in.' }, { status: 500 });
   }

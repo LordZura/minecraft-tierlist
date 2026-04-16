@@ -32,6 +32,7 @@ export async function POST(req: Request) {
       id: userId,
       username,
       password,
+      is_admin: false,
     });
 
     if (error) {
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      user: { id: userId, username, is_admin: username === 'admin' },
+      user: { id: userId, username, is_admin: false },
     });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Could not create account.' }, { status: 500 });

@@ -1,7 +1,7 @@
 export type SessionUser = {
   id: string;
   username: string;
-  is_admin?: boolean;
+  is_admin: boolean;
 };
 
 const SESSION_KEY = 'mcpvp_session_user';
@@ -14,7 +14,7 @@ export function getSessionUser(): SessionUser | null {
   try {
     const parsed = JSON.parse(raw) as SessionUser;
     if (!parsed?.id || !parsed?.username) return null;
-    return { ...parsed, is_admin: Boolean(parsed.is_admin) };
+    return parsed;
   } catch {
     return null;
   }

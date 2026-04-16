@@ -8,9 +8,9 @@ export async function getRequestUser(request: NextRequest) {
   const supabase = await createSupabaseRouteClient();
   const { data } = await supabase
     .from('users')
-    .select('id, username')
+    .select('id, username, is_admin')
     .eq('id', userId)
     .single();
 
-  return data ? { ...data, is_admin: data.username === "admin" } : null;
+  return data ?? null;
 }
