@@ -9,7 +9,7 @@ import type { User } from '@supabase/supabase-js';
 const NAV_LINKS = [
   { href: '/rankings',    label: 'Rankings'  },
   { href: '/fight-log',   label: 'Fight Log' },
-  { href: '/challenge',   label: 'Challenge' },
+  { href: '/challenges',  label: 'Challenge' },
   { href: '/notifications', label: 'Alerts'  },
 ];
 

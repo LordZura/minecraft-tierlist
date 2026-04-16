@@ -166,13 +166,7 @@ export default function HomePage() {
             <div
               key={f.title}
               className="card"
-              style={{ padding: 28, transition: "border-color 0.2s" }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.borderColor = "var(--color-border2)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.borderColor = "var(--color-border)")
-              }
+              style={{ padding: 28 }}
             >
               <div style={{ fontSize: "2rem", marginBottom: 12 }}>{f.icon}</div>
               <h3
