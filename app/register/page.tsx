@@ -39,24 +39,20 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      const registerRes = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: cleanUsername, password }),
-      });
-
-      const registerJson = await registerRes.json();
-      if (!registerRes.ok) {
-        throw new Error(registerJson?.error || 'Could not create account.');
-      }
-
-      const { error: loginError } = await supabase.auth.signInWithPassword({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: toAuthEmail(cleanUsername),
         password,
+        options: {
+          data: { username: cleanUsername },
+        },
       });
 
-      if (loginError) {
-        throw loginError;
+      if (signUpError) {
+        throw signUpError;
+      }
+
+      if (!data.user) {
+        throw new Error('Could not create account.');
       }
 
       router.push('/rankings');
