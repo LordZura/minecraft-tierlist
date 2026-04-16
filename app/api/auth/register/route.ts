@@ -1,21 +1,10 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-function toAuthEmail(username: string) {
-  return `${username.trim().toLowerCase()}@mcpvp.com`;
-}
+import { createSupabaseRouteClient } from '@/lib/supabaseRouteClient';
 
 export async function POST(req: Request) {
   try {
-    if (!supabaseUrl || !serviceRoleKey) {
-      return NextResponse.json({ error: 'Server auth env vars are missing.' }, { status: 500 });
-    }
-
     const body = await req.json();
-    const username = String(body?.username || '').trim();
+    const username = String(body?.username || '').trim().toLowerCase();
     const password = String(body?.password || '');
 
     if (!username) {
@@ -26,31 +15,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Password must be at least 4 characters.' }, { status: 400 });
     }
 
-    const cleanUsername = username.toLowerCase();
-    const admin = createClient(supabaseUrl, serviceRoleKey);
+    const supabase = await createSupabaseRouteClient();
 
-    const { data: existing } = await admin
+    const { data: existing } = await supabase
       .from('users')
       .select('id')
-      .ilike('username', cleanUsername)
+      .ilike('username', username)
       .maybeSingle();
 
     if (existing) {
       return NextResponse.json({ error: 'That username is already taken.' }, { status: 409 });
     }
 
-    const { error } = await admin.auth.admin.createUser({
-      email: toAuthEmail(cleanUsername),
+    const userId = crypto.randomUUID();
+    const { error } = await supabase.from('users').insert({
+      id: userId,
+      username,
       password,
-      email_confirm: true,
-      user_metadata: { username: cleanUsername },
     });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      user: { id: userId, username, is_admin: username === 'admin' },
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Could not create account.' }, { status: 500 });
   }

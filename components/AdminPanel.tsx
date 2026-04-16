@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { getSessionUser } from '@/lib/authSession';
 
 type FightLog = {
   id: string;
@@ -35,7 +36,6 @@ type Challenge = {
 type UserRow = {
   id: string;
   username: string;
-  is_admin: boolean;
   created_at: string;
 };
 
@@ -54,13 +54,11 @@ export function AdminPanel() {
   const [msg, setMsg]             = useState('');
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) { router.push('/login'); return; }
-      const { data: profile } = await supabase.from('users').select('is_admin').eq('id', data.user.id).single();
-      if (!profile?.is_admin) { setIsAdmin(false); return; }
-      setIsAdmin(true);
-      loadAll();
-    });
+    const user = getSessionUser();
+    if (!user) { router.push('/login'); return; }
+    if (!user.is_admin) { setIsAdmin(false); return; }
+    setIsAdmin(true);
+    loadAll();
   }, []);
 
   async function loadAll() {
@@ -68,7 +66,7 @@ export function AdminPanel() {
     const [fRes, cRes, uRes, lRes] = await Promise.all([
       supabase.from('fight_logs').select('*, p1:users!fight_logs_player1_fkey(username), p2:users!fight_logs_player2_fkey(username), w:users!fight_logs_winner_fkey(username)').order('created_at', { ascending: false }).limit(50),
       supabase.from('challenges').select('*, ch:users!challenges_challenger_fkey(username), cd:users!challenges_challenged_fkey(username)').order('created_at', { ascending: false }).limit(50),
-      supabase.from('users').select('id, username, is_admin, created_at').order('created_at', { ascending: false }),
+      supabase.from('users').select('id, username, created_at').order('created_at', { ascending: false }),
       supabase.from('admin_logs').select('*, admin:users!admin_logs_admin_id_fkey(username)').order('created_at', { ascending: false }).limit(50),
     ]);
     setFights((fRes.data as FightLog[]) ?? []);
@@ -79,7 +77,7 @@ export function AdminPanel() {
   }
 
   async function logAction(action: string, targetType: string, targetId: string, details?: object) {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = getSessionUser();
     if (!user) return;
     await supabase.from('admin_logs').insert({ admin_id: user.id, action, target_type: targetType, target_id: targetId, details });
   }
@@ -128,15 +126,6 @@ export function AdminPanel() {
     await logAction('delete_challenge', 'challenge', id);
     setChallenges(prev => prev.filter(c => c.id !== id));
     setMsg('Challenge deleted.');
-    setActing(null);
-  }
-
-  async function toggleAdmin(userId: string, current: boolean) {
-    setActing(userId);
-    await supabase.from('users').update({ is_admin: !current }).eq('id', userId);
-    await logAction(current ? 'remove_admin' : 'grant_admin', 'user', userId);
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_admin: !current } : u));
-    setMsg(`Admin ${current ? 'removed' : 'granted'}.`);
     setActing(null);
   }
 
@@ -312,18 +301,11 @@ export function AdminPanel() {
                   <tr key={u.id}>
                     <td style={{ color: 'var(--color-green)', fontWeight: 600 }}>{u.username}</td>
                     <td>
-                      {u.is_admin ? (
-                        <span className="badge badge-gold">Admin</span>
-                      ) : (
-                        <span className="badge badge-muted">Player</span>
-                      )}
+                      <span className={u.username === 'admin' ? 'badge badge-gold' : 'badge badge-muted'}>{u.username === 'admin' ? 'Admin' : 'Player'}</span>
                     </td>
                     <td className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>{new Date(u.created_at).toLocaleDateString()}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => toggleAdmin(u.id, u.is_admin)} disabled={acting === u.id} className="btn btn-ghost" style={{ padding: '3px 10px', fontSize: '0.72rem' }}>
-                          {u.is_admin ? 'Revoke Admin' : 'Make Admin'}
-                        </button>
                         <button onClick={() => deleteUser(u.id)} disabled={acting === u.id} className="btn btn-danger" style={{ padding: '3px 8px', fontSize: '0.72rem' }}>🗑</button>
                       </div>
                     </td>

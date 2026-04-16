@@ -10,7 +10,6 @@ const PVP_TYPES = ['crystal','sword','axe','uhc','manhunt','mace','smp','cart','
 type Profile = {
   id: string;
   username: string;
-  is_admin: boolean;
   created_at: string;
 };
 
@@ -74,7 +73,7 @@ export default function ProfilePage() {
       // PROFILE
       const { data: user } = await supabase
         .from('users')
-        .select('id, username, is_admin, created_at')
+        .select('id, username, created_at')
         .ilike('username', uname)
         .maybeSingle();
 

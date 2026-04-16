@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "@/lib/supabaseRouteClient";
+import { getRequestUser } from "@/lib/routeAuth";
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseRouteClient();
+  const user = await getRequestUser(req);
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -37,23 +34,13 @@ export async function POST(req: NextRequest) {
   }
 
   const lastCompleted = recent?.[0]?.completed_at;
-  if (
-    lastCompleted &&
-    new Date(lastCompleted) > new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
-  ) {
-    return NextResponse.json(
-      { error: "Challenge cooldown active." },
-      { status: 400 }
-    );
+  if (lastCompleted && new Date(lastCompleted) > new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)) {
+    return NextResponse.json({ error: "Challenge cooldown active." }, { status: 400 });
   }
 
   const { data: challenge, error } = await supabase
     .from("challenges")
-    .insert({
-      challenger: user.id,
-      challenged,
-      status: "pending",
-    })
+    .insert({ challenger: user.id, challenged, status: "pending" })
     .select()
     .single();
 
