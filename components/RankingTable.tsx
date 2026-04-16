@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import { calcChallengePoints, calcFightLogPoints } from '@/lib/points';
 
 type Player = {
   id: string;
@@ -17,7 +18,6 @@ type Player = {
   challenge_losses: number;
 };
 
-const PVP_TYPES = ['crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow'] as const;
 type SortKey = 'rank' | 'total_points' | 'total_wins' | 'challenge_wins';
 
 export default function RankingTable() {
@@ -25,17 +25,93 @@ export default function RankingTable() {
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [sortBy, setSortBy]     = useState<SortKey>('rank');
-  const [pvpFilter, setPvpFilter] = useState('');
 
   useEffect(() => {
-    supabase
-      .from('leaderboard')
-      .select('id,username,rank,total_points,total_wins,total_losses,fight_wins,fight_losses,challenge_wins,challenge_losses')
-      .then(({ data }) => {
-        setPlayers((data as Player[]) ?? []);
-        setLoading(false);
-      });
+    loadRankings();
   }, []);
+
+  async function loadRankings() {
+    setLoading(true);
+
+    const [
+      { data: users, error: usersError },
+      { data: fights, error: fightsError },
+      { data: challenges, error: challengesError },
+    ] = await Promise.all([
+      supabase.from('users').select('id, username'),
+      supabase.from('fight_logs').select('player1, player2, winner').eq('is_confirmed', true).eq('rejected', false),
+      supabase.from('challenges').select('challenger, challenged, winner, status').eq('status', 'completed'),
+    ]);
+
+    if (usersError || fightsError || challengesError || !users) {
+      setPlayers([]);
+      setLoading(false);
+      return;
+    }
+
+    const stats = new Map<string, Player>();
+
+    users.forEach((u) => {
+      stats.set(u.id, {
+        id: u.id,
+        username: u.username,
+        rank: 0,
+        total_points: 0,
+        total_wins: 0,
+        total_losses: 0,
+        fight_wins: 0,
+        fight_losses: 0,
+        challenge_wins: 0,
+        challenge_losses: 0,
+      });
+    });
+
+    (fights ?? []).forEach((fight) => {
+      const winner = stats.get(fight.winner);
+      const loserId = fight.winner === fight.player1 ? fight.player2 : fight.player1;
+      const loser = stats.get(loserId);
+      if (!winner || !loser) return;
+
+      winner.fight_wins += 1;
+      winner.total_wins += 1;
+      winner.total_points += calcFightLogPoints(true);
+
+      loser.fight_losses += 1;
+      loser.total_losses += 1;
+      loser.total_points += calcFightLogPoints(false);
+    });
+
+    (challenges ?? []).forEach((challenge) => {
+      if (!challenge.winner) return;
+
+      const winner = stats.get(challenge.winner);
+      const loserId =
+        challenge.winner === challenge.challenger ? challenge.challenged : challenge.challenger;
+      const loser = stats.get(loserId);
+      if (!winner || !loser) return;
+
+      winner.challenge_wins += 1;
+      winner.total_wins += 1;
+      winner.total_points += calcChallengePoints(true);
+
+      loser.challenge_losses += 1;
+      loser.total_losses += 1;
+      loser.total_points += calcChallengePoints(false);
+    });
+
+    const ranked = [...stats.values()].sort((a, b) => {
+      if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+      if (b.total_wins !== a.total_wins) return b.total_wins - a.total_wins;
+      return a.username.localeCompare(b.username);
+    });
+
+    ranked.forEach((p, idx) => {
+      p.rank = idx + 1;
+    });
+
+    setPlayers(ranked);
+    setLoading(false);
+  }
 
   const filtered = useMemo(() => {
     let list = [...players];
