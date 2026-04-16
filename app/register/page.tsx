@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import { getSupabaseFriendlyError } from '@/lib/supabaseError';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function RegisterPage() {
       // Profile is created by trigger; redirect
       router.push('/rankings');
     } catch (err: any) {
-      setError(err.message ?? 'Registration failed.');
+      setError(getSupabaseFriendlyError(err, 'Registration failed.'));
     } finally {
       setLoading(false);
     }

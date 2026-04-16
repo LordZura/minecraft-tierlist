@@ -303,3 +303,16 @@ Implementation notes
 
 Deliverable
 Generate the project structure, main pages, Supabase schema, RLS policies, and core logic for the app so it can be used as a functional MVP.
+## Troubleshooting: `ERR_NAME_NOT_RESOLVED` for Supabase
+
+If browser logs show requests like `https://<project-ref>.supabase.co/... net::ERR_NAME_NOT_RESOLVED`, the app cannot resolve your Supabase host DNS.
+
+Common causes:
+- `NEXT_PUBLIC_SUPABASE_URL` points to the wrong project ref.
+- The referenced Supabase project was deleted or never existed.
+- Local/network DNS issues.
+
+Quick checks:
+1. Confirm `NEXT_PUBLIC_SUPABASE_URL` exactly matches your project URL from Supabase dashboard (`https://<project-ref>.supabase.co`).
+2. Confirm the project is active in Supabase.
+3. Redeploy/restart app after updating env vars.
