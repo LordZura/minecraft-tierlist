@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import { getSupabaseFriendlyError } from '@/lib/supabaseError';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function LoginPage() {
       if (loginError) throw loginError;
       router.push('/rankings');
     } catch (err: any) {
-      setError('Invalid username or password.');
+      setError(getSupabaseFriendlyError(err, 'Invalid username or password.'));
     } finally {
       setLoading(false);
     }
