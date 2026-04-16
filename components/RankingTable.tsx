@@ -16,6 +16,9 @@ type Player = {
   fight_losses: number;
   challenge_wins: number;
   challenge_losses: number;
+  elo_overall: number;
+  elo_average: number;
+  elo_by_type: Record<PvpType, number>;
 };
 
 type SortKey = 'rank' | 'total_points' | 'total_wins' | 'challenge_wins';
@@ -115,7 +118,7 @@ export default function RankingTable() {
 
   const filtered = useMemo(() => {
     let list = [...players];
-    if (search) list = list.filter(p => p.username.toLowerCase().includes(search.toLowerCase()));
+    if (search) list = list.filter((p) => p.username.toLowerCase().includes(search.toLowerCase()));
     list.sort((a, b) => {
       if (sortBy === 'rank') return a.rank - b.rank;
       return (b[sortBy] ?? 0) - (a[sortBy] ?? 0);
@@ -138,35 +141,24 @@ export default function RankingTable() {
 
   return (
     <div>
-      {/* Filters bar */}
       <div className="card" style={{ padding: '16px 20px', marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input
-          className="input"
-          type="text"
-          placeholder="Search players…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ maxWidth: 220, padding: '7px 12px' }}
-        />
-        <select className="input" value={sortBy} onChange={e => setSortBy(e.target.value as SortKey)} style={{ maxWidth: 200, padding: '7px 12px' }}>
+        <input className="input" type="text" placeholder="Search players…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 220, padding: '7px 12px' }} />
+        <select className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} style={{ maxWidth: 220, padding: '7px 12px' }}>
           <option value="rank">Sort: Rank</option>
           <option value="total_points">Sort: Total Points</option>
+          <option value="elo_overall">Sort: Overall ELO</option>
+          <option value="elo_average">Sort: Avg ELO</option>
           <option value="total_wins">Sort: Total Wins</option>
           <option value="challenge_wins">Sort: Challenge Wins</option>
         </select>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--color-muted)', letterSpacing: '0.1em' }}>
-            {filtered.length} PLAYERS
-          </span>
+          <span className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--color-muted)', letterSpacing: '0.1em' }}>{filtered.length} PLAYERS</span>
         </div>
       </div>
 
-      {/* Table */}
       <div className="card" style={{ overflow: 'hidden' }}>
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-muted)' }}>
-            <span className="font-pixel" style={{ fontSize: '1.5rem' }}>Loading…</span>
-          </div>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-muted)' }}><span className="font-pixel" style={{ fontSize: '1.5rem' }}>Loading…</span></div>
         ) : filtered.length === 0 ? (
           <div style={{ padding: 60, textAlign: 'center' }}>
             <p className="font-pixel" style={{ fontSize: '1.5rem', color: 'var(--color-muted)' }}>No players yet</p>
@@ -177,64 +169,23 @@ export default function RankingTable() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Rank</th>
-                  <th>Player</th>
-                  <th>Points</th>
-                  <th>Wins</th>
-                  <th>Losses</th>
-                  <th>W/R</th>
-                  <th>Challenges</th>
+                  <th>Rank</th><th>Player</th><th>Points</th><th>ELO</th><th>Avg ELO</th><th>Wins</th><th>Losses</th><th>W/R</th><th>Challenges</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(p => {
+                {filtered.map((p) => {
                   const r = rankLabel(p.rank);
                   return (
                     <tr key={p.id}>
-                      <td>
-                        <span
-                          className="font-mono"
-                          style={{ color: r.color, fontWeight: 700, fontSize: p.rank <= 3 ? '1.1rem' : '0.85rem' }}
-                        >
-                          {r.label}
-                        </span>
-                      </td>
-                      <td>
-                        <Link
-                          href={`/profile/${p.username}`}
-                          style={{ color: 'var(--color-green)', textDecoration: 'none', fontWeight: 600, fontSize: '0.95rem' }}
-                        >
-                          {p.username}
-                        </Link>
-                      </td>
-                      <td>
-                        <span
-                          className="font-mono"
-                          style={{
-                            color: p.total_points >= 0 ? 'var(--color-green)' : 'var(--color-red)',
-                            fontWeight: 700,
-                          }}
-                        >
-                          {p.total_points >= 0 ? '+' : ''}{p.total_points}
-                        </span>
-                      </td>
-                      <td>
-                        <span style={{ color: 'var(--color-green)' }}>{p.total_wins}</span>
-                      </td>
-                      <td>
-                        <span style={{ color: 'var(--color-red)' }}>{p.total_losses}</span>
-                      </td>
-                      <td>
-                        <span className="font-mono" style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>
-                          {winRate(p.total_wins, p.total_losses)}
-                        </span>
-                      </td>
-                      <td>
-                        <span style={{ color: 'var(--color-green)', marginRight: 4 }}>{p.challenge_wins}W</span>
-                        <span style={{ color: 'var(--color-text-dim)', fontSize: '0.85rem' }}>
-                          / {p.challenge_losses}L
-                        </span>
-                      </td>
+                      <td><span className="font-mono" style={{ color: r.color, fontWeight: 700, fontSize: p.rank <= 3 ? '1.1rem' : '0.85rem' }}>{r.label}</span></td>
+                      <td><Link href={`/profile/${p.username}`} style={{ color: 'var(--color-green)', textDecoration: 'none', fontWeight: 600, fontSize: '0.95rem' }}>{p.username}</Link></td>
+                      <td><span className="font-mono" style={{ color: p.total_points >= 0 ? 'var(--color-green)' : 'var(--color-red)', fontWeight: 700 }}>{p.total_points >= 0 ? '+' : ''}{p.total_points}</span></td>
+                      <td><span className="font-mono" style={{ color: 'var(--color-gold)', fontWeight: 700 }}>{p.elo_overall}</span></td>
+                      <td><span className="font-mono" style={{ color: 'var(--color-text)' }}>{p.elo_average}</span></td>
+                      <td><span style={{ color: 'var(--color-green)' }}>{p.total_wins}</span></td>
+                      <td><span style={{ color: 'var(--color-red)' }}>{p.total_losses}</span></td>
+                      <td><span className="font-mono" style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)' }}>{winRate(p.total_wins, p.total_losses)}</span></td>
+                      <td><span style={{ color: 'var(--color-green)', marginRight: 4 }}>{p.challenge_wins}W</span><span style={{ color: 'var(--color-text-dim)', fontSize: '0.85rem' }}>/ {p.challenge_losses}L</span></td>
                     </tr>
                   );
                 })}
