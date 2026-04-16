@@ -29,6 +29,16 @@ export async function POST(req: Request) {
     const cleanUsername = username.toLowerCase();
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
+    const { data: existing } = await admin
+      .from('users')
+      .select('id')
+      .ilike('username', cleanUsername)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json({ error: 'That username is already taken.' }, { status: 409 });
+    }
+
     const { error } = await admin.auth.admin.createUser({
       email: toAuthEmail(cleanUsername),
       password,
@@ -37,8 +47,7 @@ export async function POST(req: Request) {
     });
 
     if (error) {
-      const status = error.message.toLowerCase().includes('already') ? 409 : 400;
-      return NextResponse.json({ error: error.message }, { status });
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({ ok: true });
