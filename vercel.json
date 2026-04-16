@@ -1,0 +1,6 @@
+{
+  "framework": "nextjs",
+  "installCommand": "cd minecraft-pvp-tierlist && npm install",
+  "buildCommand": "cd minecraft-pvp-tierlist && npm run build",
+  "outputDirectory": "minecraft-pvp-tierlist/.next"
+}
