@@ -214,9 +214,9 @@ export default function RankingTable() {
 
   return (
     <div>
-      <div className="card" style={{ padding: '16px 20px', marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-        <input className="input" type="text" placeholder="Search players…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ maxWidth: 220, padding: '7px 12px' }} />
-        <select className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} style={{ maxWidth: 220, padding: '7px 12px' }}>
+      <div className="card" style={{ padding: '14px', marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input className="input" type="text" placeholder="Search players…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: '1 1 220px', minWidth: 0 }} />
+        <select className="input" value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} style={{ flex: '1 1 220px', minWidth: 0 }}>
           <option value="rank">Sort: Rank</option>
           <option value="total_points">Sort: Total Points</option>
           <option value="elo_overall">Sort: Overall ELO</option>
@@ -224,12 +224,12 @@ export default function RankingTable() {
           <option value="total_wins">Sort: Total Wins</option>
           <option value="challenge_wins">Sort: Challenge Wins</option>
         </select>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, minHeight: 40 }}>
           <span className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--color-muted)', letterSpacing: '0.1em' }}>{filtered.length} PLAYERS</span>
         </div>
       </div>
 
-      <div className="card" style={{ overflow: 'hidden' }}>
+      <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-muted)' }}><span className="font-pixel" style={{ fontSize: '1.5rem' }}>Loading…</span></div>
         ) : filtered.length === 0 ? (
@@ -238,7 +238,28 @@ export default function RankingTable() {
             <p style={{ color: 'var(--color-muted)', marginTop: 8, fontSize: '0.875rem' }}>Be the first to register and log a fight.</p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <>
+          <div className="mobile-only" style={{ padding: 12, display: 'grid', gap: 10 }}>
+            {filtered.map((p) => {
+              const r = rankLabel(p.rank);
+              return (
+                <div key={`mobile-${p.id}`} style={{ border: '1px solid var(--color-border)', borderRadius: 10, padding: 12, display: 'grid', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                    <Link href={`/profile/${p.username}`} style={{ color: 'var(--color-green)', textDecoration: 'none', fontWeight: 700 }}>{p.username}</Link>
+                    <span className="font-mono" style={{ color: r.color, fontWeight: 700 }}>{r.label}</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 6, fontSize: '0.84rem' }}>
+                    <span>Points: <b style={{ color: p.total_points >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}>{p.total_points >= 0 ? '+' : ''}{p.total_points}</b></span>
+                    <span>ELO: <b style={{ color: 'var(--color-gold)' }}>{p.elo_overall}</b></span>
+                    <span>W/L: <b>{p.total_wins}/{p.total_losses}</b></span>
+                    <span>W/R: <b>{winRate(p.total_wins, p.total_losses)}</b></span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="desktop-only table-wrap">
             <table className="data-table">
               <thead>
                 <tr>
@@ -265,6 +286,7 @@ export default function RankingTable() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

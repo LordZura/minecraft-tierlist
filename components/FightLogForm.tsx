@@ -74,7 +74,7 @@ export function FightLogForm() {
   const selectedPlayer = players.find(p => p.id === opponent);
 
   return (
-    <div className="card" style={{ padding: 36 }}>
+    <div className="card" style={{ padding: 'clamp(14px, 4vw, 36px)' }}>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {/* Opponent search */}
         <div>
@@ -82,7 +82,7 @@ export function FightLogForm() {
             Opponent *
           </label>
           {selectedPlayer ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'rgba(74,222,128,0.05)', border: '1px solid var(--color-green)', borderRadius: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'rgba(74,222,128,0.05)', border: '1px solid var(--color-green)', borderRadius: 10 }}>
               <span style={{ color: 'var(--color-green)', fontWeight: 600 }}>{selectedPlayer.username}</span>
               <button
                 type="button"
@@ -115,7 +115,7 @@ export function FightLogForm() {
                       type="button"
                       onClick={() => { setOpponent(p.id); setPlayerSearch(p.username); setPlayers([]); }}
                       style={{
-                        display: 'block', width: '100%', padding: '10px 14px', background: 'none',
+                        display: 'block', width: '100%', padding: '12px 14px', background: 'none',
                         border: 'none', borderBottom: '1px solid var(--color-border)',
                         color: 'var(--color-text)', textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--font-body)',
                       }}
@@ -163,7 +163,7 @@ export function FightLogForm() {
                 type="button"
                 onClick={() => setWinner(side)}
                 style={{
-                  flex: 1, padding: '10px', borderRadius: 2, cursor: 'pointer',
+                  flex: 1, padding: '10px', borderRadius: 10, cursor: 'pointer',
                   background: winner === side ? (side === 'me' ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.12)') : 'var(--color-surface2)',
                   border: winner === side ? `1px solid ${side === 'me' ? 'var(--color-green)' : 'var(--color-red)'}` : '1px solid var(--color-border)',
                   color: winner === side ? (side === 'me' ? 'var(--color-green)' : 'var(--color-red)') : 'var(--color-text-dim)',
@@ -192,12 +192,12 @@ export function FightLogForm() {
         </div>
 
         {error && (
-          <div style={{ padding: '10px 14px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 2 }}>
+          <div style={{ padding: '12px 14px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 10 }}>
             <p style={{ color: 'var(--color-red)', fontSize: '0.875rem' }}>{error}</p>
           </div>
         )}
         {success && (
-          <div style={{ padding: '10px 14px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 2 }}>
+          <div style={{ padding: '12px 14px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 10 }}>
             <p style={{ color: 'var(--color-green)', fontSize: '0.875rem' }}>{success}</p>
           </div>
         )}

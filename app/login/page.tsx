@@ -53,9 +53,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ maxWidth: 460, margin: '56px auto', padding: '0 18px' }}>
-      <div className="card" style={{ padding: 30 }}>
-        <h1 className="font-pixel" style={{ fontSize: '2rem', color: 'var(--color-green)', marginBottom: 6 }}>
+    <div className="page-shell" style={{ maxWidth: 520, paddingTop: 'clamp(20px, 7vw, 56px)' }}>
+      <div className="card" style={{ padding: 'clamp(18px, 4vw, 30px)' }}>
+        <h1 className="font-pixel" style={{ fontSize: 'clamp(1.6rem, 7vw, 2rem)', color: 'var(--color-green)', marginBottom: 6 }}>
           Welcome Back
         </h1>
         <p style={{ color: 'var(--color-text-dim)', marginBottom: 18 }}>

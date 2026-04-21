@@ -74,13 +74,13 @@ export default function ChallengePage() {
   };
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
+    <div className="page-shell" style={{ maxWidth: 940 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <p className="font-mono" style={{ color: 'var(--color-gold)', fontSize: '0.7rem', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8 }}>
             Head-to-Head
           </p>
-          <h1 className="font-pixel" style={{ fontSize: '2.5rem', color: 'var(--color-text)' }}>Challenges</h1>
+          <h1 className="font-pixel page-title" style={{ color: 'var(--color-text)' }}>Challenges</h1>
           <p style={{ color: 'var(--color-text-dim)', fontSize: '0.9rem', marginTop: 6 }}>
             10-match series. Majority wins. 3-day cooldown after a loss.
           </p>
