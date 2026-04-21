@@ -62,14 +62,14 @@ export function ChallengeForm() {
   const selectedPlayer = players.find(p => p.id === opponent);
 
   return (
-    <div className="card" style={{ padding: 36 }}>
+    <div className="card" style={{ padding: 'clamp(14px, 4vw, 36px)' }}>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div>
           <label className="font-mono" style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: 6 }}>
             Challenge Who? *
           </label>
           {selectedPlayer ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'rgba(251,191,36,0.05)', border: '1px solid var(--color-gold)', borderRadius: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'rgba(251,191,36,0.05)', border: '1px solid var(--color-gold)', borderRadius: 10 }}>
               <span style={{ color: 'var(--color-gold)', fontWeight: 600 }}>{selectedPlayer.username}</span>
               <button
                 type="button"
@@ -102,7 +102,7 @@ export function ChallengeForm() {
                       type="button"
                       onClick={() => { setOpponent(p.id); setPlayerSearch(p.username); setPlayers([]); }}
                       style={{
-                        display: 'block', width: '100%', padding: '10px 14px', background: 'none',
+                        display: 'block', width: '100%', padding: '12px 14px', background: 'none',
                         border: 'none', borderBottom: '1px solid var(--color-border)',
                         color: 'var(--color-text)', textAlign: 'left', cursor: 'pointer', fontFamily: 'var(--font-body)',
                       }}
@@ -124,7 +124,7 @@ export function ChallengeForm() {
             padding: '14px 16px',
             background: 'rgba(251,191,36,0.04)',
             border: '1px solid rgba(251,191,36,0.15)',
-            borderRadius: 2,
+            borderRadius: 10,
           }}
         >
           <p className="font-mono" style={{ fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-gold)', marginBottom: 8 }}>
@@ -139,12 +139,12 @@ export function ChallengeForm() {
         </div>
 
         {error && (
-          <div style={{ padding: '10px 14px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 2 }}>
+          <div style={{ padding: '12px 14px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 10 }}>
             <p style={{ color: 'var(--color-red)', fontSize: '0.875rem' }}>{error}</p>
           </div>
         )}
         {success && (
-          <div style={{ padding: '10px 14px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 2 }}>
+          <div style={{ padding: '12px 14px', background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 10 }}>
             <p style={{ color: 'var(--color-green)', fontSize: '0.875rem' }}>{success}</p>
           </div>
         )}

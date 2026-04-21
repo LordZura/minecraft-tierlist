@@ -128,13 +128,13 @@ export default function ChallengeDetailPage() {
   const finalType = matches.length > 0 ? matches[matches.length - 1].pvp_type : null;
 
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: '40px 24px' }}>
+    <div className="page-shell" style={{ maxWidth: 760 }}>
       <Link href="/challenge" style={{ color: 'var(--color-muted)', textDecoration: 'none', fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 24 }}>
         ← Back
       </Link>
 
       {/* Challenge header */}
-      <div className="card" style={{ padding: 28, marginBottom: 20 }}>
+      <div className="card" style={{ padding: 'clamp(14px, 4vw, 28px)', marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
           <div>
             <p className="font-mono" style={{ fontSize: '0.65rem', letterSpacing: '0.15em', color: 'var(--color-muted)', textTransform: 'uppercase', marginBottom: 6 }}>
@@ -152,16 +152,16 @@ export default function ChallengeDetailPage() {
         </div>
 
         {/* Score display */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, justifyContent: 'center', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
           <div style={{ textAlign: 'center' }}>
-            <p className="font-pixel" style={{ fontSize: '3rem', color: 'var(--color-gold)', lineHeight: 1 }}>{challenge.challenger_wins}</p>
+            <p className="font-pixel" style={{ fontSize: 'clamp(2.2rem, 12vw, 3rem)', color: 'var(--color-gold)', lineHeight: 1 }}>{challenge.challenger_wins}</p>
             <p className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--color-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{chUsername}</p>
           </div>
           <div>
             <p className="font-mono" style={{ fontSize: '1.2rem', color: 'var(--color-border2)' }}>:</p>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <p className="font-pixel" style={{ fontSize: '3rem', color: 'var(--color-text)', lineHeight: 1 }}>{challenge.challenged_wins}</p>
+            <p className="font-pixel" style={{ fontSize: 'clamp(2.2rem, 12vw, 3rem)', color: 'var(--color-text)', lineHeight: 1 }}>{challenge.challenged_wins}</p>
             <p className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--color-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{cdUsername}</p>
           </div>
         </div>
@@ -262,7 +262,7 @@ export default function ChallengeDetailPage() {
               Match History
             </p>
           </div>
-          <table className="data-table">
+          <div className="table-wrap"><table className="data-table">
             <thead>
               <tr>
                 <th>#</th>
@@ -283,7 +283,7 @@ export default function ChallengeDetailPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
     </div>

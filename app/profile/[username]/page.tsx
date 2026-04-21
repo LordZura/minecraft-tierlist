@@ -190,14 +190,14 @@ export default function ProfilePage() {
   }
 
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: '40px 24px' }}>
+    <div className="page-shell" style={{ maxWidth: 1000 }}>
       <Link href="/rankings" style={{ color: 'var(--color-muted)', textDecoration: 'none', display: 'inline-block', marginBottom: 16 }}>← Back to Rankings</Link>
 
       <div className="card" style={{ padding: 24, marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <p className="font-mono" style={{ color: 'var(--color-muted)', fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Player Profile</p>
-            <h1 className="font-pixel" style={{ fontSize: '2.1rem', color: 'var(--color-green)' }}>{profile.username}</h1>
+            <h1 className="font-pixel" style={{ fontSize: 'clamp(1.6rem, 7vw, 2.1rem)', color: 'var(--color-green)' }}>{profile.username}</h1>
             <p style={{ color: 'var(--color-text-dim)', fontSize: '0.85rem' }}>Joined {new Date(profile.created_at).toLocaleDateString()}</p>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -232,7 +232,7 @@ export default function ProfilePage() {
 
       <div className="card" style={{ padding: 18, marginBottom: 16 }}>
         <h2 className="font-pixel" style={{ fontSize: '1.1rem', marginBottom: 10 }}>Challenge Strength</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>
           <div>
             <p className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--color-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Currently stronger than</p>
             {strongerThan.length === 0 ? <p style={{ color: 'var(--color-text-dim)' }}>No completed challenge wins yet.</p> : <ul>{strongerThan.map((u) => <li key={u} style={{ color: 'var(--color-green)' }}>{u}</li>)}</ul>}
@@ -251,7 +251,7 @@ export default function ProfilePage() {
         </div>
 
         {tab === 'fights' ? (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-wrap">
             <table className="data-table">
               <thead><tr><th>Date</th><th>Type</th><th>Opponent</th><th>Result</th><th>Score</th></tr></thead>
               <tbody>
@@ -272,7 +272,7 @@ export default function ProfilePage() {
             </table>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-wrap">
             <table className="data-table">
               <thead><tr><th>Date</th><th>Opponent</th><th>Type</th><th>Status</th><th>Series</th><th>Result</th></tr></thead>
               <tbody>

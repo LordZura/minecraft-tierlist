@@ -210,7 +210,7 @@ export function NotificationList() {
                 key={n.id}
                 className="card"
                 style={{
-                  padding: "16px 20px",
+                  padding: "14px",
                   borderColor: !n.read
                     ? "var(--color-border2)"
                     : "var(--color-border)",
@@ -287,7 +287,7 @@ export function NotificationList() {
 
                   {/* Actions */}
                   {needsAction && n.related_id && (
-                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
                       {n.type === "fight_log_request" && (
                         <>
                           <button
@@ -300,7 +300,7 @@ export function NotificationList() {
                                 "confirm",
                               )
                             }
-                            style={{ padding: "6px 16px", fontSize: "0.8rem" }}
+                            style={{ padding: "8px 14px", fontSize: "0.78rem", minHeight: 40 }}
                           >
                             {isActing ? "…" : "✓ Confirm"}
                           </button>
@@ -314,7 +314,7 @@ export function NotificationList() {
                                 "reject",
                               )
                             }
-                            style={{ padding: "6px 16px", fontSize: "0.8rem" }}
+                            style={{ padding: "8px 14px", fontSize: "0.78rem", minHeight: 40 }}
                           >
                             {isActing ? "…" : "✗ Reject"}
                           </button>
@@ -333,8 +333,9 @@ export function NotificationList() {
                               )
                             }
                             style={{
-                              padding: "6px 16px",
-                              fontSize: "0.8rem",
+                              padding: "8px 14px",
+                              fontSize: "0.78rem",
+                              minHeight: 40,
                               background: "var(--color-gold)",
                               borderColor: "var(--color-gold)",
                             }}
@@ -351,7 +352,7 @@ export function NotificationList() {
                                 "reject",
                               )
                             }
-                            style={{ padding: "6px 16px", fontSize: "0.8rem" }}
+                            style={{ padding: "8px 14px", fontSize: "0.78rem", minHeight: 40 }}
                           >
                             {isActing ? "…" : "✗ Decline"}
                           </button>

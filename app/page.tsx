@@ -37,9 +37,9 @@ const FEATURES = [
 
 export default function HomePage() {
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px" }}>
+    <div className="page-shell" style={{ maxWidth: 1120 }}>
       {/* Hero */}
-      <section style={{ textAlign: "center", padding: "80px 0 64px" }}>
+      <section style={{ textAlign: "center", padding: "clamp(36px, 12vw, 80px) 0 clamp(30px, 8vw, 64px)" }}>
         <p
           className="font-mono"
           style={{
@@ -55,7 +55,7 @@ export default function HomePage() {
         <h1
           className="font-pixel glow-green"
           style={{
-            fontSize: "clamp(3rem, 8vw, 6rem)",
+            fontSize: "clamp(2.1rem, 12vw, 6rem)",
             color: "var(--color-green)",
             lineHeight: 1,
             marginBottom: 8,
@@ -66,7 +66,7 @@ export default function HomePage() {
         <p
           className="font-pixel"
           style={{
-            fontSize: "clamp(1.2rem, 3vw, 1.8rem)",
+            fontSize: "clamp(1rem, 5vw, 1.8rem)",
             color: "var(--color-gold)",
             marginBottom: 32,
             letterSpacing: "0.05em",
@@ -98,7 +98,7 @@ export default function HomePage() {
             href="/register"
             className="btn btn-primary"
             style={{
-              padding: "12px 32px",
+              padding: "12px clamp(18px, 6vw, 32px)",
               fontSize: "0.95rem",
               textDecoration: "none",
             }}
@@ -109,7 +109,7 @@ export default function HomePage() {
             href="/rankings"
             className="btn btn-ghost"
             style={{
-              padding: "12px 32px",
+              padding: "12px clamp(18px, 6vw, 32px)",
               fontSize: "0.95rem",
               textDecoration: "none",
             }}
@@ -154,7 +154,7 @@ export default function HomePage() {
       </section>
 
       {/* Features */}
-      <section style={{ marginBottom: 96 }}>
+      <section style={{ marginBottom: "clamp(44px, 9vw, 96px)" }}>
         <div
           style={{
             display: "grid",
