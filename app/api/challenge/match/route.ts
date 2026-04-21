@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
 
     const loser = finalWinner === challenge.challenger ? challenge.challenged : challenge.challenger;
     await supabase.from("notifications").insert([
-      { user_id: finalWinner, type: "challenge_result", related_id: challenge_id, message: "You won the challenge series! Rankings updated." },
-      { user_id: loser, type: "challenge_result", related_id: challenge_id, message: "Challenge series ended. You lost. 3-day cooldown applied." },
+      { user_id: finalWinner, type: "challenge_result", related_id: challenge_id, message: `You won the challenge series in ${pvp_type}! Rankings updated.` },
+      { user_id: loser, type: "challenge_result", related_id: challenge_id, message: `Challenge series ended in ${pvp_type}. You lost. 3-day cooldown applied.` },
     ]);
   }
 

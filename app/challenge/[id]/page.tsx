@@ -125,6 +125,7 @@ export default function ChallengeDetailPage() {
   const progressPct = (totalMatches / 10) * 100;
   const isActive = challenge.status === 'accepted';
   const amParticipant = myId === challenge.challenger || myId === challenge.challenged;
+  const finalType = matches.length > 0 ? matches[matches.length - 1].pvp_type : null;
 
   return (
     <div style={{ maxWidth: 700, margin: '0 auto', padding: '40px 24px' }}>
@@ -178,6 +179,11 @@ export default function ChallengeDetailPage() {
             <p className="font-pixel" style={{ color: 'var(--color-green)', fontSize: '1.3rem' }}>
               🏆 {challenge.winner === challenge.challenger ? chUsername : cdUsername} wins the series!
             </p>
+            {finalType && (
+              <p className="font-mono" style={{ color: 'var(--color-muted)', marginTop: 6, fontSize: '0.75rem' }}>
+                Deciding match type: {finalType}
+              </p>
+            )}
           </div>
         )}
       </div>

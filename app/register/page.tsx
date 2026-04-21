@@ -69,57 +69,63 @@ export default function RegisterPage() {
   }
 
   return (
-    <div style={{ maxWidth: 420, margin: '48px auto', padding: 16 }}>
-      <h1>Register</h1>
-      <p>Create your account</p>
+    <div style={{ maxWidth: 460, margin: '56px auto', padding: '0 18px' }}>
+      <div className="card" style={{ padding: 30 }}>
+        <h1 className="font-pixel" style={{ fontSize: '2rem', color: 'var(--color-green)', marginBottom: 6 }}>
+          Create Account
+        </h1>
+        <p style={{ color: 'var(--color-text-dim)', marginBottom: 18 }}>
+          Join the ladder and start logging your PvP matches.
+        </p>
 
-      <form onSubmit={handleRegister} style={{ display: 'grid', gap: 12 }}>
-        <label>
-          Username
-          <input
-            className="input"
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            autoComplete="username"
-          />
-        </label>
+        <form onSubmit={handleRegister} style={{ display: 'grid', gap: 12 }}>
+          <label>
+            Username
+            <input
+              className="input"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoComplete="username"
+            />
+          </label>
 
-        <label>
-          Password
-          <input
-            className="input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-          />
-        </label>
+          <label>
+            Password
+            <input
+              className="input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+            />
+          </label>
 
-        <label>
-          Confirm password
-          <input
-            className="input"
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            required
-            autoComplete="new-password"
-          />
-        </label>
+          <label>
+            Confirm password
+            <input
+              className="input"
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+              autoComplete="new-password"
+            />
+          </label>
 
-        {error && <p style={{ color: 'var(--color-red)' }}>{error}</p>}
+          {error && <p style={{ color: 'var(--color-red)', fontSize: '0.875rem', padding: '8px 10px', border: '1px solid rgba(248,113,113,0.32)', borderRadius: 10, background: 'rgba(248,113,113,0.08)' }}>{error}</p>}
 
-        <button type="submit" className="btn btn-primary" disabled={loading}>
-          {loading ? 'Creating account...' : 'Create account'}
-        </button>
-      </form>
+          <button type="submit" className="btn btn-primary" disabled={loading} style={{ marginTop: 4, padding: '11px' }}>
+            {loading ? 'Creating account...' : 'Create account'}
+          </button>
+        </form>
 
-      <p style={{ marginTop: 16 }}>
-        Already have an account? <Link href="/login">Login</Link>
-      </p>
+        <p style={{ marginTop: 16, fontSize: '0.9rem', color: 'var(--color-text-dim)' }}>
+          Already have an account? <Link href="/login">Login</Link>
+        </p>
+      </div>
     </div>
   );
 }

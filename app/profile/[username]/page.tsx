@@ -67,6 +67,7 @@ export default function ProfilePage() {
   const [lostTo, setLostTo] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'fights' | 'challenges'>('fights');
+  const [challengeTypes, setChallengeTypes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (username) loadProfile(username);
@@ -104,7 +105,24 @@ export default function ProfilePage() {
 
       const fightData = (fightRes.data as FightLog[] | null) ?? [];
       setFights(fightData);
-      setChallenges((challengeRes.data as ChallengeRecord[] | null) ?? []);
+      const challengeData = (challengeRes.data as ChallengeRecord[] | null) ?? [];
+      setChallenges(challengeData);
+
+      if (challengeData.length > 0) {
+        const { data: challengeMatchData } = await supabase
+          .from('challenge_matches')
+          .select('challenge_id,pvp_type,match_number')
+          .in('challenge_id', challengeData.map((c) => c.id))
+          .order('match_number', { ascending: false });
+
+        const typeMap: Record<string, string> = {};
+        (challengeMatchData ?? []).forEach((m: any) => {
+          if (!typeMap[m.challenge_id]) typeMap[m.challenge_id] = m.pvp_type;
+        });
+        setChallengeTypes(typeMap);
+      } else {
+        setChallengeTypes({});
+      }
 
       const breakdown: Record<string, { wins: number; losses: number }> = Object.fromEntries(PVP_TYPES.map((t) => [t, { wins: 0, losses: 0 }]));
       fightData.forEach((f) => {
@@ -256,7 +274,7 @@ export default function ProfilePage() {
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
-              <thead><tr><th>Date</th><th>Opponent</th><th>Status</th><th>Series</th><th>Result</th></tr></thead>
+              <thead><tr><th>Date</th><th>Opponent</th><th>Type</th><th>Status</th><th>Series</th><th>Result</th></tr></thead>
               <tbody>
                 {challenges.slice(0, 50).map((c) => {
                   const opp = c.challenger === profile.id ? (c.cd as any)?.username : (c.ch as any)?.username;
@@ -265,6 +283,7 @@ export default function ProfilePage() {
                     <tr key={c.id}>
                       <td>{new Date(c.created_at).toLocaleDateString()}</td>
                       <td>{opp ?? '?'}</td>
+                      <td><span className="badge badge-muted">{challengeTypes[c.id] ?? '—'}</span></td>
                       <td><span className="badge badge-muted">{c.status}</span></td>
                       <td>{c.challenger === profile.id ? `${c.challenger_wins}-${c.challenged_wins}` : `${c.challenged_wins}-${c.challenger_wins}`}</td>
                       <td style={{ color: c.status !== 'completed' ? 'var(--color-muted)' : won ? 'var(--color-green)' : 'var(--color-red)' }}>{c.status !== 'completed' ? '—' : won ? 'Win' : 'Loss'}</td>
