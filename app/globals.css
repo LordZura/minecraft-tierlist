@@ -1,27 +1,291 @@
 /* app/globals.css */
 
-/* minimal reset */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+:root {
+  --color-bg: #080c08;
+  --color-bg2: #0b130d;
+  --color-surface: #0f170f;
+  --color-surface2: #121d14;
+  --color-surface3: #15231a;
+  --color-border: #223326;
+  --color-border2: #37543d;
+  --color-green: #6ef2a1;
+  --color-green-strong: #4ade80;
+  --color-gold: #f6c659;
+  --color-red: #f87171;
+  --color-text: #e2f5e4;
+  --color-text-dim: #b7cfba;
+  --color-muted: #7f9a84;
+  --radius: 14px;
+}
+
 html,
 body {
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
-  background: #080c08;
-  color: #d4e8d4;
-  font-family: system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 20% -20%, rgba(110, 242, 161, 0.08), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(246, 198, 89, 0.08), transparent 34%),
+    linear-gradient(180deg, var(--color-bg2), var(--color-bg));
+  color: var(--color-text);
+  font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif;
+  line-height: 1.5;
 }
 
-/* simple helpers */
-.card {
-  background: #0f150f;
-  border: 1px solid #1f2e1f;
-  padding: 12px;
-  border-radius: 4px;
+main {
+  animation: fadeIn 0.35s ease-out;
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+a {
+  color: var(--color-green);
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--color-green-strong);
+}
+
+.card {
+  background: linear-gradient(160deg, rgba(19, 30, 21, 0.95), rgba(12, 20, 13, 0.95));
+  border: 1px solid color-mix(in srgb, var(--color-border) 82%, #fff 18%);
+  padding: 16px;
+  border-radius: var(--radius);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.card:hover {
+  border-color: var(--color-border2);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(110, 242, 161, 0.06);
+}
+
+.font-pixel {
+  font-family: 'Trebuchet MS', 'Arial Black', Impact, sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.font-body {
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.glow-green {
+  text-shadow: 0 0 16px rgba(110, 242, 161, 0.32);
+}
+
+.glow-gold {
+  text-shadow: 0 0 16px rgba(246, 198, 89, 0.3);
+}
+
+.btn {
+  --btn-bg: transparent;
+  --btn-border: var(--color-border2);
+  --btn-text: var(--color-text);
+  appearance: none;
+  border: 1px solid var(--btn-border);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--btn-bg) 86%, #fff 14%), var(--btn-bg));
+  color: var(--btn-text);
+  border-radius: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.76rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.62rem 1rem;
+  text-decoration: none;
+  transition: transform 0.18s ease, filter 0.22s ease, box-shadow 0.22s ease, border-color 0.2s ease;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.24);
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.3);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn:focus-visible,
+.input:focus-visible,
+select.input:focus-visible,
+textarea.input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(110, 242, 161, 0.18);
+  border-color: var(--color-green);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  filter: grayscale(0.2);
+}
+
+.btn-primary {
+  --btn-bg: rgba(74, 222, 128, 0.2);
+  --btn-border: rgba(74, 222, 128, 0.6);
+  --btn-text: #e8ffee;
+}
+
+.btn-ghost {
+  --btn-bg: rgba(155, 175, 160, 0.08);
+  --btn-border: rgba(127, 154, 132, 0.45);
+  --btn-text: var(--color-text-dim);
+}
+
+.btn-danger {
+  --btn-bg: rgba(248, 113, 113, 0.12);
+  --btn-border: rgba(248, 113, 113, 0.5);
+  --btn-text: #ffd9d9;
+}
+
+.input,
+select.input,
+textarea.input,
+input,
+select,
+textarea {
+  width: 100%;
+  background: linear-gradient(180deg, rgba(21, 33, 24, 0.95), rgba(14, 23, 16, 0.95));
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: 10px;
+  padding: 0.64rem 0.78rem;
+  font-size: 0.92rem;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.input::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--color-muted) 80%, white 20%);
+}
+
+select,
+select.input {
+  cursor: pointer;
+}
+
+label {
+  color: var(--color-text-dim);
+  font-size: 0.86rem;
+  font-weight: 600;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem 0.62rem;
+  border-radius: 999px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid transparent;
+}
+
+.badge-green {
+  color: #c9ffe0;
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.35);
+}
+
+.badge-gold {
+  color: #ffe8b1;
+  background: rgba(246, 198, 89, 0.12);
+  border-color: rgba(246, 198, 89, 0.35);
+}
+
+.badge-red {
+  color: #ffd6d6;
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.badge-muted {
+  color: var(--color-text-dim);
+  background: rgba(127, 154, 132, 0.12);
+  border-color: rgba(127, 154, 132, 0.32);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.data-table thead {
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.data-table th {
+  text-align: left;
+  color: var(--color-muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.8rem 0.85rem;
+  font-family: ui-monospace, monospace;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-table td {
+  padding: 0.8rem 0.85rem;
+  border-bottom: 1px solid rgba(127, 154, 132, 0.16);
+  font-size: 0.9rem;
+}
+
+.data-table tbody tr {
+  transition: background 0.18s ease;
+}
+
+.data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+@media (max-width: 640px) {
+  .card {
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .btn {
+    font-size: 0.72rem;
+  }
+}
+
+.hidden { display: none; }
+@media (min-width: 640px) { .sm\:flex { display: flex; } }
