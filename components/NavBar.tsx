@@ -14,6 +14,8 @@ const NAV_LINKS = [
   { href: '/admin', label: 'Admin' },
 ];
 
+const HEADER_HEIGHT = 62;
+
 export function NavBar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -38,6 +40,19 @@ export function NavBar() {
     setMobileOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setMobileOpen(false);
+    }
+
+    if (!mobileOpen) return;
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [mobileOpen]);
+
   async function loadProfile(userId: string) {
     const { count } = await supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('read', false);
     setUnread(count ?? 0);
@@ -52,15 +67,15 @@ export function NavBar() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
   return (
-    <nav style={{ background: 'rgba(8,12,8,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--color-border)', position: 'sticky', top: 0, zIndex: 50 }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 14px', display: 'flex', alignItems: 'center', height: 62, gap: 12 }}>
-        <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
-          <span className="font-pixel glow-green" style={{ fontSize: 'clamp(1.15rem, 5vw, 1.5rem)', color: 'var(--color-green)', letterSpacing: '0.08em' }}>
+    <nav style={{ background: 'rgba(8,12,8,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--color-border)', position: 'sticky', top: 0, zIndex: 60 }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 14px', display: 'flex', alignItems: 'center', height: HEADER_HEIGHT, gap: 12, position: 'relative' }}>
+        <Link href="/" style={{ textDecoration: 'none', flexShrink: 1, minWidth: 0, marginRight: 'auto' }}>
+          <span className="font-pixel glow-green" style={{ fontSize: 'clamp(1.15rem, 5vw, 1.5rem)', color: 'var(--color-green)', letterSpacing: '0.08em', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             ⚔ MC<span style={{ color: 'var(--color-gold)' }}>PvP</span>
           </span>
         </Link>
 
-        <div style={{ display: 'flex', gap: 4, flex: 1, minWidth: 0 }} className="hidden sm:flex">
+        <div style={{ gap: 4, flex: 1, minWidth: 0 }} className="hidden sm:flex">
           {NAV_LINKS.map((link) => (
             <Link key={link.href} href={link.href} style={{ textDecoration: 'none', padding: '10px 12px', borderRadius: 8, fontSize: '0.83rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', position: 'relative', color: isActive(link.href) ? 'var(--color-green)' : 'var(--color-text-dim)', background: isActive(link.href) ? 'rgba(74,222,128,0.08)' : 'transparent', transition: 'all 0.15s' }}>
               {link.label}
@@ -73,7 +88,7 @@ export function NavBar() {
           ))}
         </div>
 
-        <div style={{ marginLeft: 'auto', display: 'none', alignItems: 'center', gap: 10 }} className="sm:flex">
+        <div style={{ alignItems: 'center', gap: 10 }} className="hidden sm:flex">
           {user ? (
             <>
               <Link href={`/profile/${user.username}`} style={{ textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)', maxWidth: 160, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -97,14 +112,31 @@ export function NavBar() {
           className="btn btn-ghost sm:hidden"
           aria-label="Toggle navigation menu"
           aria-expanded={mobileOpen}
-          style={{ padding: '0 12px', minWidth: 44, height: 44, fontSize: '1rem' }}
+          style={{ padding: '0 12px', minWidth: 44, height: 44, fontSize: '1rem', marginLeft: 8, position: 'relative', zIndex: 70, flexShrink: 0 }}
         >
           {mobileOpen ? '✕' : '☰'}
         </button>
       </div>
 
       {mobileOpen && (
-        <div style={{ borderTop: '1px solid var(--color-border)', padding: '12px 14px 16px', display: 'grid', gap: 10, background: 'rgba(10,15,10,0.98)' }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            right: 0,
+            width: 'min(92vw, 380px)',
+            borderLeft: '1px solid var(--color-border)',
+            borderBottom: '1px solid var(--color-border)',
+            padding: '12px 14px 16px',
+            display: 'grid',
+            gap: 10,
+            background: 'rgba(10,15,10,0.98)',
+            zIndex: 62,
+            overflowY: 'auto',
+            maxHeight: `calc(100dvh - ${HEADER_HEIGHT}px)`,
+            boxShadow: '0 20px 40px rgba(0,0,0,0.45)',
+          }}
+        >
           <div style={{ display: 'grid', gap: 8 }}>
             {NAV_LINKS.map((link) => (
               <Link key={link.href} href={link.href} style={{ textDecoration: 'none', padding: '12px 14px', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', position: 'relative', color: isActive(link.href) ? 'var(--color-green)' : 'var(--color-text-dim)', background: isActive(link.href) ? 'rgba(74,222,128,0.12)' : 'rgba(127,154,132,0.08)' }}>
@@ -117,7 +149,7 @@ export function NavBar() {
           <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, display: 'grid', gap: 8 }}>
             {user ? (
               <>
-                <Link href={`/profile/${user.username}`} className="btn btn-ghost" style={{ textDecoration: 'none', justifyContent: 'flex-start', paddingInline: 14 }}>
+                <Link href={`/profile/${user.username}`} className="btn btn-ghost" style={{ textDecoration: 'none', justifyContent: 'flex-start', paddingInline: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
                   @{user.username}
                 </Link>
                 <button onClick={handleLogout} className="btn btn-danger" style={{ justifyContent: 'center' }}>
