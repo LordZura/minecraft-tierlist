@@ -20,12 +20,18 @@ type Challenge = {
   cd_user?: { username: string };
 };
 
+type ChallengeMatchType = {
+  challenge_id: string;
+  pvp_type: string;
+};
+
 export default function ChallengePage() {
   const router = useRouter();
   const [myId, setMyId]             = useState<string | null>(null);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading]       = useState(true);
   const [showForm, setShowForm]     = useState(false);
+  const [challengeTypes, setChallengeTypes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const user = getSessionUser();
@@ -40,7 +46,26 @@ export default function ChallengePage() {
       .select('*, ch_user:users!challenges_challenger_fkey(username), cd_user:users!challenges_challenged_fkey(username)')
       .or(`challenger.eq.${userId},challenged.eq.${userId}`)
       .order('created_at', { ascending: false });
-    setChallenges((data as Challenge[]) ?? []);
+    const challengeRows = (data as Challenge[]) ?? [];
+    setChallenges(challengeRows);
+
+    if (challengeRows.length > 0) {
+      const challengeIds = challengeRows.map((c) => c.id);
+      const { data: matches } = await supabase
+        .from('challenge_matches')
+        .select('challenge_id,pvp_type')
+        .in('challenge_id', challengeIds)
+        .order('match_number', { ascending: false });
+
+      const typeMap: Record<string, string> = {};
+      ((matches as ChallengeMatchType[] | null) ?? []).forEach((m) => {
+        if (!typeMap[m.challenge_id]) typeMap[m.challenge_id] = m.pvp_type;
+      });
+      setChallengeTypes(typeMap);
+    } else {
+      setChallengeTypes({});
+    }
+
     setLoading(false);
   }
 
@@ -108,6 +133,7 @@ export default function ChallengePage() {
                     <span className="font-pixel" style={{ fontSize: '1.6rem' }}>{c.challenged_wins}</span>
                     <span className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--color-muted)' }}>({total}/10)</span>
                   </div>
+                  {challengeTypes[c.id] && <span className="badge badge-muted">{challengeTypes[c.id]}</span>}
                   <span className={`badge ${statusColor[c.status] ?? 'badge-muted'}`}>{c.status}</span>
                   <span style={{ color: 'var(--color-muted)' }}>›</span>
                 </div>

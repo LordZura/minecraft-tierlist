@@ -21,6 +21,7 @@ export function NotificationList() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
+  const [challengeTypes, setChallengeTypes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const user = getSessionUser();
@@ -40,7 +41,28 @@ export function NotificationList() {
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(50);
-    setNotifications(data ?? []);
+    const notifRows = (data as Notification[] | null) ?? [];
+    setNotifications(notifRows);
+
+    const challengeIds = notifRows
+      .filter((n) => n.type === "challenge_result" && !!n.related_id)
+      .map((n) => n.related_id!) ;
+
+    if (challengeIds.length > 0) {
+      const { data: matches } = await supabase
+        .from("challenge_matches")
+        .select("challenge_id,pvp_type,match_number")
+        .in("challenge_id", challengeIds)
+        .order("match_number", { ascending: false });
+
+      const typeMap: Record<string, string> = {};
+      (matches ?? []).forEach((m: any) => {
+        if (!typeMap[m.challenge_id]) typeMap[m.challenge_id] = m.pvp_type;
+      });
+      setChallengeTypes(typeMap);
+    } else {
+      setChallengeTypes({});
+    }
     setLoading(false);
   }
 
@@ -232,6 +254,11 @@ export function NotificationList() {
                       >
                         {n.message}
                       </p>
+                      {n.type === "challenge_result" && n.related_id && challengeTypes[n.related_id] && (
+                        <p className="font-mono" style={{ fontSize: "0.68rem", color: "var(--color-gold)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>
+                          Type: {challengeTypes[n.related_id]}
+                        </p>
+                      )}
                       <p
                         className="font-mono"
                         style={{

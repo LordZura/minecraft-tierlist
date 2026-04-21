@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getSessionUser, isAdminUnlocked, setAdminUnlocked } from '@/lib/authSession';
 
@@ -63,7 +62,6 @@ type OverrideRow = {
 type Tab = 'fights' | 'challenges' | 'users' | 'logs';
 
 export function AdminPanel() {
-  const router = useRouter();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -74,6 +72,7 @@ export function AdminPanel() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [overrides, setOverrides] = useState<Record<string, OverrideRow>>({});
   const [adminLogs, setAdminLogs] = useState<any[]>([]);
+  const [challengeTypes, setChallengeTypes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
@@ -83,12 +82,7 @@ export function AdminPanel() {
 
   useEffect(() => {
     const user = getSessionUser();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    if (user.is_admin || isAdminUnlocked()) {
+    if (user?.is_admin || isAdminUnlocked()) {
       setIsAdmin(true);
       loadAll();
       return;
@@ -100,12 +94,13 @@ export function AdminPanel() {
 
   async function loadAll() {
     setLoading(true);
-    const [fRes, cRes, uRes, lRes, oRes] = await Promise.all([
+    const [fRes, cRes, uRes, lRes, oRes, mRes] = await Promise.all([
       supabase.from('fight_logs').select('*, p1:users!fight_logs_player1_fkey(username), p2:users!fight_logs_player2_fkey(username), w:users!fight_logs_winner_fkey(username)').order('created_at', { ascending: false }).limit(100),
       supabase.from('challenges').select('*, ch:users!challenges_challenger_fkey(username), cd:users!challenges_challenged_fkey(username)').order('created_at', { ascending: false }).limit(100),
       supabase.from('users').select('id, username, created_at').order('created_at', { ascending: false }),
       supabase.from('admin_logs').select('*, admin:users!admin_logs_admin_id_fkey(username)').order('created_at', { ascending: false }).limit(100),
       supabase.from('user_admin_overrides').select('*'),
+      supabase.from('challenge_matches').select('challenge_id,pvp_type,match_number').order('match_number', { ascending: false }).limit(500),
     ]);
 
     setFights((fRes.data as FightLog[]) ?? []);
@@ -118,6 +113,12 @@ export function AdminPanel() {
       map[row.user_id] = row;
     });
     setOverrides(map);
+
+    const typeMap: Record<string, string> = {};
+    (mRes.data as any[] | null)?.forEach((m) => {
+      if (!typeMap[m.challenge_id]) typeMap[m.challenge_id] = m.pvp_type;
+    });
+    setChallengeTypes(typeMap);
 
     setLoading(false);
   }
@@ -333,12 +334,13 @@ export function AdminPanel() {
         {tab === 'challenges' && (
           <div style={{ overflowX: 'auto' }}>
             <table className="data-table">
-              <thead><tr><th>Challenger</th><th>Challenged</th><th>Status</th><th>Score</th><th>Date</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Challenger</th><th>Challenged</th><th>Type</th><th>Status</th><th>Score</th><th>Date</th><th>Actions</th></tr></thead>
               <tbody>
                 {challenges.map((c) => (
                   <tr key={c.id}>
                     <td>{(c.ch as any)?.username ?? '?'}</td>
                     <td>{(c.cd as any)?.username ?? '?'}</td>
+                    <td><span className="badge badge-muted">{challengeTypes[c.id] ?? '—'}</span></td>
                     <td><span className={`badge ${c.status === 'completed' ? 'badge-green' : c.status === 'accepted' ? 'badge-gold' : c.status === 'rejected' ? 'badge-red' : 'badge-muted'}`}>{c.status}</span></td>
                     <td>{c.challenger_wins} - {c.challenged_wins}</td>
                     <td>{new Date(c.created_at).toLocaleDateString()}</td>

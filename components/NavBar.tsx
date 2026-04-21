@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: '/fight-log',   label: 'Fight Log' },
   { href: '/challenges',  label: 'Challenge' },
   { href: '/notifications', label: 'Alerts'  },
+  { href: '/admin',       label: 'Admin'     },
 ];
 
 export function NavBar() {
@@ -73,11 +74,6 @@ export function NavBar() {
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
           {user ? (
             <>
-              {user.is_admin && (
-                <Link href="/admin" style={{ textDecoration: 'none', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', color: 'var(--color-gold)', textTransform: 'uppercase', padding: '4px 10px', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 2 }}>
-                  Admin
-                </Link>
-              )}
               <Link href={`/profile/${user.username}`} style={{ textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-body)' }}>
                 {user.username}
               </Link>
