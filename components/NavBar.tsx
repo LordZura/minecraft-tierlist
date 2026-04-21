@@ -45,10 +45,13 @@ export function NavBar() {
       if (event.key === 'Escape') setMobileOpen(false);
     }
 
-    if (!mobileOpen) return;
-    window.addEventListener('keydown', onKeyDown);
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', onKeyDown);
+    }
 
     return () => {
+      document.body.style.overflow = '';
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [mobileOpen]);
@@ -119,51 +122,58 @@ export function NavBar() {
       </div>
 
       {mobileOpen && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '100%',
-            right: 0,
-            width: 'min(92vw, 380px)',
-            borderLeft: '1px solid var(--color-border)',
-            borderBottom: '1px solid var(--color-border)',
-            padding: '12px 14px 16px',
-            display: 'grid',
-            gap: 10,
-            background: 'rgba(10,15,10,0.98)',
-            zIndex: 62,
-            overflowY: 'auto',
-            maxHeight: `calc(100dvh - ${HEADER_HEIGHT}px)`,
-            boxShadow: '0 20px 40px rgba(0,0,0,0.45)',
-          }}
-        >
-          <div style={{ display: 'grid', gap: 8 }}>
-            {NAV_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} style={{ textDecoration: 'none', padding: '12px 14px', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', position: 'relative', color: isActive(link.href) ? 'var(--color-green)' : 'var(--color-text-dim)', background: isActive(link.href) ? 'rgba(74,222,128,0.12)' : 'rgba(127,154,132,0.08)' }}>
-                {link.label}
-                {link.href === '/notifications' && unread > 0 && <span style={{ marginLeft: 8, color: 'var(--color-red)' }}>({unread > 9 ? '9+' : unread})</span>}
-              </Link>
-            ))}
-          </div>
+        <>
+          <button
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+            style={{ position: 'fixed', inset: 0, top: HEADER_HEIGHT, background: 'rgba(2, 6, 4, 0.74)', border: 0, zIndex: 61 }}
+          />
 
-          <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, display: 'grid', gap: 8 }}>
-            {user ? (
-              <>
-                <Link href={`/profile/${user.username}`} className="btn btn-ghost" style={{ textDecoration: 'none', justifyContent: 'flex-start', paddingInline: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
-                  @{user.username}
+          <div
+            style={{
+              position: 'fixed',
+              top: HEADER_HEIGHT,
+              right: 0,
+              bottom: 0,
+              width: 'min(92vw, 380px)',
+              borderLeft: '1px solid var(--color-border)',
+              padding: '12px 14px 16px',
+              display: 'grid',
+              gap: 10,
+              background: 'rgba(10,15,10,0.98)',
+              zIndex: 62,
+              overflowY: 'auto',
+            }}
+          >
+            <div style={{ display: 'grid', gap: 8 }}>
+              {NAV_LINKS.map((link) => (
+                <Link key={link.href} href={link.href} style={{ textDecoration: 'none', padding: '12px 14px', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', position: 'relative', color: isActive(link.href) ? 'var(--color-green)' : 'var(--color-text-dim)', background: isActive(link.href) ? 'rgba(74,222,128,0.12)' : 'rgba(127,154,132,0.08)' }}>
+                  {link.label}
+                  {link.href === '/notifications' && unread > 0 && <span style={{ marginLeft: 8, color: 'var(--color-red)' }}>({unread > 9 ? '9+' : unread})</span>}
                 </Link>
-                <button onClick={handleLogout} className="btn btn-danger" style={{ justifyContent: 'center' }}>
-                  Logout
-                </button>
-              </>
-            ) : (
-              <>
-                <Link href="/login" className="btn btn-ghost" style={{ textDecoration: 'none' }}>Login</Link>
-                <Link href="/register" className="btn btn-primary" style={{ textDecoration: 'none' }}>Register</Link>
-              </>
-            )}
+              ))}
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, display: 'grid', gap: 8 }}>
+              {user ? (
+                <>
+                  <Link href={`/profile/${user.username}`} className="btn btn-ghost" style={{ textDecoration: 'none', justifyContent: 'flex-start', paddingInline: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                    @{user.username}
+                  </Link>
+                  <button onClick={handleLogout} className="btn btn-danger" style={{ justifyContent: 'center' }}>
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/login" className="btn btn-ghost" style={{ textDecoration: 'none' }}>Login</Link>
+                  <Link href="/register" className="btn btn-primary" style={{ textDecoration: 'none' }}>Register</Link>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </nav>
   );
