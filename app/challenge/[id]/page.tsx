@@ -6,8 +6,6 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { getSessionUser } from '@/lib/authSession';
 
-const PVP_TYPES = ['crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow'];
-
 type Challenge = {
   id: string;
   challenger: string;
@@ -18,6 +16,7 @@ type Challenge = {
   challenged_wins: number;
   created_at: string;
   completed_at: string | null;
+  pvp_type?: string | null;
   ch_user?: { username: string };
   cd_user?: { username: string };
 };
@@ -28,6 +27,8 @@ type Match = {
   winner: string;
   pvp_type: string;
   score: string | null;
+  challenger_rounds_won?: number;
+  challenged_rounds_won?: number;
   created_at: string;
   winner_user?: { username: string };
 };
@@ -39,9 +40,8 @@ export default function ChallengeDetailPage() {
   const [challenge, setChallenge]   = useState<Challenge | null>(null);
   const [matches, setMatches]       = useState<Match[]>([]);
   const [loading, setLoading]       = useState(true);
-  const [pvpType, setPvpType]       = useState('');
-  const [winner, setWinner]         = useState('');
-  const [score, setScore]           = useState('');
+  const [challengerRounds, setChallengerRounds] = useState(0);
+  const [challengedRounds, setChallengedRounds] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]           = useState('');
   const [success, setSuccess]       = useState('');
@@ -95,18 +95,18 @@ export default function ChallengeDetailPage() {
 
   async function logMatch(e: React.FormEvent) {
     e.preventDefault();
-    if (!pvpType || !winner) { setError('Fill in all fields.'); return; }
+    if (challengerRounds === challengedRounds) { setError('Rounds cannot be tied.'); return; }
     setError(''); setSuccess(''); setSubmitting(true);
     try {
       const res = await fetch('/api/challenge/match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': myId ?? '' },
-        body: JSON.stringify({ challenge_id: id, winner_id: winner, pvp_type: pvpType, score }),
+        body: JSON.stringify({ challenge_id: id, challenger_rounds_won: challengerRounds, challenged_rounds_won: challengedRounds }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSuccess(`Match ${data.matchNumber} logged!`);
-      setPvpType(''); setWinner(''); setScore('');
+      setChallengerRounds(0); setChallengedRounds(0);
       loadChallenge(myId!);
     } catch (err: any) {
       setError(err.message);
@@ -125,7 +125,7 @@ export default function ChallengeDetailPage() {
   const progressPct = (totalMatches / 10) * 100;
   const isActive = challenge.status === 'accepted';
   const amParticipant = myId === challenge.challenger || myId === challenge.challenged;
-  const finalType = matches.length > 0 ? matches[matches.length - 1].pvp_type : null;
+  const finalType = challenge.pvp_type || (matches.length > 0 ? matches[matches.length - 1].pvp_type : null);
 
   return (
     <div className="page-shell" style={{ maxWidth: 760 }}>
@@ -197,57 +197,30 @@ export default function ChallengeDetailPage() {
           <form onSubmit={logMatch} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <label className="font-mono" style={{ display: 'block', fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: 6 }}>
-                PvP Type
+                Locked PvP Type
               </label>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {PVP_TYPES.map(t => (
-                  <button key={t} type="button" onClick={() => setPvpType(t)}
-                    className={pvpType === t ? 'badge badge-green' : 'badge badge-muted'}
-                    style={{ cursor: 'pointer', padding: '5px 10px', fontSize: '0.72rem' }}>
-                    {t}
-                  </button>
-                ))}
+              <span className="badge badge-gold">{challenge.pvp_type || 'legacy'}</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label className="font-mono" style={{ display: 'block', fontSize: '0.65rem', marginBottom: 6 }}>
+                  {chUsername} rounds won
+                </label>
+                <input className="input" type="number" min={0} max={10} value={challengerRounds} onChange={e => setChallengerRounds(Number(e.target.value))} />
               </div>
-            </div>
-
-            <div>
-              <label className="font-mono" style={{ display: 'block', fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: 6 }}>
-                Score (optional)
-              </label>
-              <input
-                className="input"
-                type="text"
-                value={score}
-                onChange={e => setScore(e.target.value)}
-                placeholder="e.g. 3-1"
-                maxLength={32}
-              />
-            </div>
-
-            <div>
-              <label className="font-mono" style={{ display: 'block', fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: 6 }}>
-                Who Won?
-              </label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[{ id: challenge.challenger, name: chUsername }, { id: challenge.challenged, name: cdUsername }].map(p => (
-                  <button key={p.id} type="button" onClick={() => setWinner(p.id)}
-                    style={{
-                      flex: 1, padding: '8px', borderRadius: 2, cursor: 'pointer',
-                      background: winner === p.id ? 'rgba(74,222,128,0.1)' : 'var(--color-surface2)',
-                      border: winner === p.id ? '1px solid var(--color-green)' : '1px solid var(--color-border)',
-                      color: winner === p.id ? 'var(--color-green)' : 'var(--color-text-dim)',
-                      fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: '0.85rem', transition: 'all 0.15s',
-                    }}>
-                    {p.name}
-                  </button>
-                ))}
+              <div>
+                <label className="font-mono" style={{ display: 'block', fontSize: '0.65rem', marginBottom: 6 }}>
+                  {cdUsername} rounds won
+                </label>
+                <input className="input" type="number" min={0} max={10} value={challengedRounds} onChange={e => setChallengedRounds(Number(e.target.value))} />
               </div>
             </div>
 
             {error && <p style={{ color: 'var(--color-red)', fontSize: '0.875rem' }}>{error}</p>}
             {success && <p style={{ color: 'var(--color-green)', fontSize: '0.875rem' }}>{success}</p>}
 
-            <button type="submit" className="btn btn-primary" disabled={submitting || !pvpType || !winner} style={{ width: '100%', padding: '10px' }}>
+            <button type="submit" className="btn btn-primary" disabled={submitting} style={{ width: '100%', padding: '10px' }}>
               {submitting ? 'Logging…' : 'Log Match'}
             </button>
           </form>
@@ -278,7 +251,7 @@ export default function ChallengeDetailPage() {
                   <td className="font-mono" style={{ color: 'var(--color-muted)', fontSize: '0.85rem' }}>{m.match_number}</td>
                   <td style={{ color: 'var(--color-green)', fontWeight: 600 }}>{(m.winner_user as any)?.username}</td>
                   <td><span className="badge badge-muted">{m.pvp_type}</span></td>
-                  <td className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>{m.score || '—'}</td>
+                  <td className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>{m.challenger_rounds_won ?? '?'}-{m.challenged_rounds_won ?? '?'} rounds</td>
                   <td className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>{new Date(m.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}
