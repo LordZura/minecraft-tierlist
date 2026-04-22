@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: '/rankings', label: 'Rankings' },
   { href: '/fight-log', label: 'Fight Log' },
   { href: '/challenges', label: 'Challenge' },
+  { href: '/weekly', label: 'Weekly Event' },
   { href: '/notifications', label: 'Alerts' },
   { href: '/admin', label: 'Admin' },
 ];

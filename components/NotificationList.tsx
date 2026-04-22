@@ -143,6 +143,13 @@ export function NotificationList() {
     challenge_result: "📊",
     fight_log_confirmed: "✅",
     fight_log_rejected: "❌",
+    weekly_cycle_started: "🗓️",
+    weekly_pending_assignments: "📌",
+    weekly_opponent_waiting: "⏳",
+    weekly_default_win: "🏅",
+    weekly_missed_ready: "⌛",
+    weekly_cycle_ending: "⚠️",
+    weekly_penalty_applied: "📉",
   };
 
   const unread = notifications.filter((n) => !n.read).length;
