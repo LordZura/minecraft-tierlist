@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, password_hash, is_admin')
+      .select('id, username, password_hash, is_admin, is_super_admin')
       .eq('username', username)
       .maybeSingle();
 
@@ -40,6 +40,7 @@ export async function POST(req: Request) {
         id: user.id,
         username: user.username,
         is_admin: user.is_admin,
+        is_super_admin: user.is_super_admin,
       },
     });
   } catch (err: any) {

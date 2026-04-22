@@ -10,12 +10,23 @@ export async function GET(req: NextRequest) {
 
   await syncWeeklyCycle(supabase);
 
-  const { data: cycle } = await supabase
+  let { data: cycle } = await supabase
     .from('weekly_pvp_cycles')
     .select('*')
+    .eq('status', 'active')
     .order('start_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  if (!cycle) {
+    const fallback = await supabase
+      .from('weekly_pvp_cycles')
+      .select('*')
+      .order('start_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    cycle = fallback.data;
+  }
 
   if (!cycle) return NextResponse.json({ cycle: null, assignments: [], progress: [], history: [] });
 

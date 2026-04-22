@@ -6,7 +6,7 @@ type WeeklyCycle = {
   id: string;
   start_at: string;
   end_at: string;
-  status: 'upcoming' | 'active' | 'completed';
+  status: 'upcoming' | 'active' | 'completed' | 'cancelled';
   selected_pvp_types: PvpType[];
   required_rounds_per_type: number;
 };
@@ -21,7 +21,7 @@ type Assignment = {
   a_ready_at: string | null;
   b_ready_at: string | null;
   ready_by_at: string | null;
-  status: 'pending' | 'ready' | 'completed' | 'expired';
+  status: 'pending' | 'ready' | 'completed' | 'expired' | 'cancelled';
   winner: string | null;
   win_type: 'played' | 'default' | 'no_ready' | null;
 };
@@ -43,13 +43,6 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function getCycleWindow(now = new Date()) {
-  const t = now.getTime();
-  const startTs = t - (t % MS_IN_WEEK);
-  const endTs = startTs + MS_IN_WEEK;
-  return { start: new Date(startTs), end: new Date(endTs) };
-}
-
 function shuffle<T>(arr: readonly T[]) {
   const clone = [...arr];
   for (let i = clone.length - 1; i > 0; i -= 1) {
@@ -64,6 +57,25 @@ function chooseWeeklyTypes() {
     throw new Error(`Weekly event requires at least ${REQUIRED_TYPES} PvP types.`);
   }
   return shuffle(PVP_TYPES).slice(0, REQUIRED_TYPES);
+}
+
+async function createCycleNow(supabase: SB, start = new Date()) {
+  const selected = chooseWeeklyTypes();
+  const end = new Date(start.getTime() + MS_IN_WEEK);
+  const created = await supabase
+    .from('weekly_pvp_cycles')
+    .insert({
+      start_at: start.toISOString(),
+      end_at: end.toISOString(),
+      status: 'active',
+      required_rounds_per_type: REQUIRED_ROUNDS,
+      selected_pvp_types: selected,
+    })
+    .select('*')
+    .single();
+
+  if (created.error) throw created.error;
+  return created.data as WeeklyCycle;
 }
 
 function pairWeight(a: string, b: string, inCycleCount: Map<string, number>, recentCount: Map<string, number>) {
@@ -128,31 +140,19 @@ async function notifyUsers(
 
 export async function syncWeeklyCycle(supabase: SB) {
   const now = new Date();
-  const { start, end } = getCycleWindow(now);
 
   await finalizeExpiredCycles(supabase, now);
 
   let { data: cycle } = await supabase
     .from('weekly_pvp_cycles')
     .select('*')
-    .eq('start_at', start.toISOString())
+    .eq('status', 'active')
+    .order('start_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (!cycle) {
-    const selected = chooseWeeklyTypes();
-    const created = await supabase
-      .from('weekly_pvp_cycles')
-      .insert({
-        start_at: start.toISOString(),
-        end_at: end.toISOString(),
-        status: 'active',
-        required_rounds_per_type: REQUIRED_ROUNDS,
-        selected_pvp_types: selected,
-      })
-      .select('*')
-      .single();
-    if (created.error) throw created.error;
-    cycle = created.data;
+    cycle = await createCycleNow(supabase, now);
 
     const { data: users } = await supabase.from('users').select('id');
     const userIds = (users ?? []).map((u: any) => u.id);
@@ -160,7 +160,7 @@ export async function syncWeeklyCycle(supabase: SB) {
       supabase,
       userIds,
       'weekly_cycle_started',
-      () => `A new weekly PvP event started. Required types: ${selected.join(', ')}.`,
+      () => `A new weekly PvP event started. Required types: ${cycle.selected_pvp_types.join(', ')}.`,
       cycle.id,
       `weekly_cycle_started:${cycle.id}`,
     );
@@ -352,6 +352,9 @@ export function getMatchupKey(assignment: Pick<Assignment, 'pvp_type' | 'player_
 }
 
 async function maybeFinalizeCycleEarly(supabase: SB, cycleId: string) {
+  const { data: cycle } = await supabase.from('weekly_pvp_cycles').select('status').eq('id', cycleId).maybeSingle();
+  if (!cycle || cycle.status !== 'active') return;
+
   const { count } = await supabase
     .from('weekly_pvp_assignments')
     .select('id', { count: 'exact', head: true })
@@ -365,6 +368,70 @@ async function maybeFinalizeCycleEarly(supabase: SB, cycleId: string) {
     .update({ status: 'completed', finalized_at: nowIso() })
     .eq('id', cycleId)
     .neq('status', 'completed');
+}
+
+export async function adminResetWeeklyEventNow(supabase: SB, actorId: string, reason = 'Admin reset') {
+  const now = nowIso();
+  const { data: active } = await supabase
+    .from('weekly_pvp_cycles')
+    .select('*')
+    .eq('status', 'active')
+    .order('start_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (active) {
+    await supabase
+      .from('weekly_pvp_assignments')
+      .update({ status: 'cancelled', win_type: 'admin_cancelled', resolved_at: now })
+      .eq('cycle_id', active.id)
+      .in('status', ['pending', 'ready']);
+
+    await supabase
+      .from('weekly_pvp_cycles')
+      .update({
+        status: 'cancelled',
+        finalized_at: now,
+        ended_by_admin: true,
+        reset_by_admin_id: actorId,
+        reset_reason: reason,
+      })
+      .eq('id', active.id)
+      .eq('status', 'active');
+  }
+
+  const cycle = await createCycleNow(supabase, new Date());
+  await ensureCycleProgress(supabase, cycle);
+  await ensureCycleAssignments(supabase, cycle);
+
+  const { data: users } = await supabase.from('users').select('id');
+  const userIds = (users ?? []).map((u: any) => u.id as string);
+  await notifyUsers(
+    supabase,
+    userIds,
+    'weekly_cycle_started',
+    () => `A new weekly PvP event started. Required types: ${cycle.selected_pvp_types.join(', ')}.`,
+    cycle.id,
+    `weekly_cycle_started:${cycle.id}`,
+  );
+
+  if (active) {
+    const { data: impacted } = await supabase
+      .from('weekly_pvp_assignments')
+      .select('player_a,player_b')
+      .eq('cycle_id', active.id);
+    const impactedIds = [...new Set((impacted ?? []).flatMap((row: any) => [row.player_a, row.player_b]))] as string[];
+    await notifyUsers(
+      supabase,
+      impactedIds,
+      'weekly_cycle_reset',
+      () => 'The previous weekly event was reset by an admin. Pending rounds were cancelled.',
+      active.id,
+      `weekly_cycle_reset:${active.id}`,
+    );
+  }
+
+  return { oldCycleId: active?.id ?? null, newCycle: cycle };
 }
 
 export async function resolveWeeklyTimeouts(supabase: SB, cycleId: string) {
@@ -432,6 +499,10 @@ export async function markWeeklyMatchComplete(
   const nowISO = nowIso();
   const { data: assignment } = await supabase.from('weekly_pvp_assignments').select('*').eq('id', assignmentId).single();
   if (!assignment || assignment.status === 'completed' || assignment.status === 'expired') return;
+  const { data: cycle } = await supabase.from('weekly_pvp_cycles').select('id,status').eq('id', assignment.cycle_id).maybeSingle();
+  if (!cycle || cycle.status !== 'active') {
+    throw new Error('Weekly cycle is not active.');
+  }
 
   if (![assignment.player_a, assignment.player_b].includes(winnerId)) {
     throw new Error('Winner must be one of the assigned players.');
@@ -461,7 +532,10 @@ export async function submitWeeklyMatchupResult(
   const { data: assignment } = await supabase.from('weekly_pvp_assignments').select('*').eq('id', assignmentId).single();
   if (!assignment) throw new Error('Assignment not found.');
   if (assignment.status === 'completed' || assignment.status === 'expired') throw new Error('Assignment already resolved.');
+  if (assignment.status === 'cancelled') throw new Error('Assignment was cancelled.');
   if (![assignment.player_a, assignment.player_b].includes(actorId)) throw new Error('Forbidden.');
+  const { data: cycle } = await supabase.from('weekly_pvp_cycles').select('id,status').eq('id', assignment.cycle_id).maybeSingle();
+  if (!cycle || cycle.status !== 'active') throw new Error('Weekly cycle is no longer active.');
 
   const { data: rows } = await supabase
     .from('weekly_pvp_assignments')

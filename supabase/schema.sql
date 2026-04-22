@@ -36,6 +36,7 @@ create table public.users (
   username text not null unique,
   password_hash text not null,
   is_admin boolean not null default false,
+  is_super_admin boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint users_username_format_chk check (username ~ '^[a-z0-9_]{3,32}$')
@@ -169,9 +170,12 @@ create table public.weekly_pvp_cycles (
   status text not null default 'active',
   selected_pvp_types text[] not null,
   required_rounds_per_type integer not null default 3,
+  ended_by_admin boolean not null default false,
+  reset_by_admin_id uuid references public.users(id) on delete set null,
+  reset_reason text,
   created_at timestamptz not null default now(),
   finalized_at timestamptz,
-  constraint weekly_pvp_cycles_status_chk check (status in ('upcoming','active','completed')),
+  constraint weekly_pvp_cycles_status_chk check (status in ('upcoming','active','completed','cancelled')),
   constraint weekly_pvp_cycles_types_chk check (array_length(selected_pvp_types, 1) = 3),
   constraint weekly_pvp_cycles_window_chk check (end_at > start_at)
 );
@@ -192,13 +196,14 @@ create table public.weekly_pvp_assignments (
   resolved_at timestamptz,
   created_at timestamptz not null default now(),
   constraint weekly_pvp_assignments_players_chk check (player_a <> player_b),
-  constraint weekly_pvp_assignments_status_chk check (status in ('pending','ready','completed','expired')),
+  constraint weekly_pvp_assignments_status_chk check (status in ('pending','ready','completed','expired','cancelled')),
   constraint weekly_pvp_assignments_pvp_type_chk check (pvp_type in ('crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow'))
 );
 
 create index weekly_pvp_assignments_cycle_idx on public.weekly_pvp_assignments(cycle_id, pvp_type, round_number);
 create index weekly_pvp_assignments_player_a_idx on public.weekly_pvp_assignments(player_a, cycle_id);
 create index weekly_pvp_assignments_player_b_idx on public.weekly_pvp_assignments(player_b, cycle_id);
+create unique index weekly_pvp_cycles_single_active_idx on public.weekly_pvp_cycles(status) where status = 'active';
 
 create table public.weekly_pvp_progress (
   cycle_id uuid not null references public.weekly_pvp_cycles(id) on delete cascade,
@@ -250,6 +255,22 @@ create table public.admin_logs (
 );
 
 create index admin_logs_admin_idx on public.admin_logs(admin_id, created_at desc);
+
+create table public.admin_action_logs (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid not null references public.users(id) on delete cascade,
+  action text not null,
+  target_table text,
+  target_id text,
+  old_value jsonb,
+  new_value jsonb,
+  reason text,
+  meta jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index admin_action_logs_actor_idx on public.admin_action_logs(actor_id, created_at desc);
+create index admin_action_logs_target_idx on public.admin_action_logs(target_table, target_id, created_at desc);
 
 -- Auto-updated timestamps for users
 create or replace function public.set_updated_at()
@@ -325,6 +346,7 @@ alter table public.challenges disable row level security;
 alter table public.challenge_matches disable row level security;
 alter table public.notifications disable row level security;
 alter table public.admin_logs disable row level security;
+alter table public.admin_action_logs disable row level security;
 alter table public.user_admin_overrides disable row level security;
 alter table public.admin_user_adjustments disable row level security;
 alter table public.weekly_pvp_cycles disable row level security;
