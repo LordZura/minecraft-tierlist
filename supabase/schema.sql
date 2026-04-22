@@ -167,10 +167,12 @@ create table public.weekly_pvp_cycles (
   start_at timestamptz not null unique,
   end_at timestamptz not null,
   status text not null default 'active',
+  selected_pvp_types text[] not null,
   required_rounds_per_type integer not null default 3,
   created_at timestamptz not null default now(),
   finalized_at timestamptz,
-  constraint weekly_pvp_cycles_status_chk check (status in ('active','completed')),
+  constraint weekly_pvp_cycles_status_chk check (status in ('upcoming','active','completed')),
+  constraint weekly_pvp_cycles_types_chk check (array_length(selected_pvp_types, 1) = 3),
   constraint weekly_pvp_cycles_window_chk check (end_at > start_at)
 );
 
@@ -180,13 +182,13 @@ create table public.weekly_pvp_assignments (
   pvp_type text not null,
   player_a uuid not null references public.users(id) on delete cascade,
   player_b uuid not null references public.users(id) on delete cascade,
+  round_number integer not null default 1,
   a_ready_at timestamptz,
   b_ready_at timestamptz,
-  ready_deadline_at timestamptz not null,
+  ready_by_at timestamptz,
   status text not null default 'pending',
   winner uuid references public.users(id) on delete set null,
   win_type text,
-  rounds_awarded integer not null default 3,
   resolved_at timestamptz,
   created_at timestamptz not null default now(),
   constraint weekly_pvp_assignments_players_chk check (player_a <> player_b),
@@ -194,7 +196,7 @@ create table public.weekly_pvp_assignments (
   constraint weekly_pvp_assignments_pvp_type_chk check (pvp_type in ('crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow'))
 );
 
-create index weekly_pvp_assignments_cycle_idx on public.weekly_pvp_assignments(cycle_id, pvp_type);
+create index weekly_pvp_assignments_cycle_idx on public.weekly_pvp_assignments(cycle_id, pvp_type, round_number);
 create index weekly_pvp_assignments_player_a_idx on public.weekly_pvp_assignments(player_a, cycle_id);
 create index weekly_pvp_assignments_player_b_idx on public.weekly_pvp_assignments(player_b, cycle_id);
 
@@ -226,6 +228,7 @@ create table public.notifications (
   user_id uuid not null references public.users(id) on delete cascade,
   type text not null,
   related_id uuid,
+  dedupe_key text,
   message text not null,
   read boolean not null default false,
   created_at timestamptz not null default now()
@@ -233,6 +236,7 @@ create table public.notifications (
 
 create index notifications_user_idx on public.notifications(user_id, created_at desc);
 create index notifications_read_idx on public.notifications(user_id, read);
+create unique index notifications_user_dedupe_idx on public.notifications(user_id, dedupe_key);
 
 -- ADMIN LOGS
 create table public.admin_logs (
