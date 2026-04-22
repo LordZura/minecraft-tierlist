@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { calcChallengePoints, calcFightLogPoints } from '@/lib/points';
 import { computeElo, PVP_TYPES, type EloEvent, type PvpType } from '@/utils/elo';
+import { applyEloAdjustments } from '@/lib/eloAdjustments';
 
 type Profile = {
   id: string;
@@ -84,13 +85,15 @@ export default function ProfilePage() {
       }
       setProfile(user);
 
-      const [lbRes, fightRes, challengeRes, usersRes, challengeMatchesRes, overrideRes] = await Promise.all([
+      const [lbRes, fightRes, challengeRes, usersRes, challengeMatchesRes, overrideRes, weeklyAssignmentsRes, eloAdjustmentsRes] = await Promise.all([
         supabase.from('leaderboard').select('rank,total_points,total_wins,total_losses,fight_wins,fight_losses,challenge_wins,challenge_losses').eq('id', user.id).maybeSingle(),
         supabase.from('fight_logs').select('id,player1,player2,winner,pvp_type,score,created_at,p1:users!fight_logs_player1_fkey(username),p2:users!fight_logs_player2_fkey(username)').or(`player1.eq.${user.id},player2.eq.${user.id}`).eq('is_confirmed', true).eq('rejected', false).order('created_at', { ascending: false }),
         supabase.from('challenges').select('id,challenger,challenged,status,winner,challenger_wins,challenged_wins,completed_at,created_at,ch:users!challenges_challenger_fkey(username),cd:users!challenges_challenged_fkey(username)').or(`challenger.eq.${user.id},challenged.eq.${user.id}`).order('created_at', { ascending: false }),
         supabase.from('users').select('id'),
         supabase.from('challenge_matches').select('winner,pvp_type,created_at,challenge:challenges!challenge_matches_challenge_id_fkey(challenger,challenged)'),
         supabase.from('user_admin_overrides').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('weekly_assignments').select('player_a,player_b,winner,pvp_type,created_at,status').in('status', ['played', 'default_win']),
+        supabase.from('elo_adjustments').select('user_id,pvp_type,delta'),
       ]);
 
       const lb = lbRes.data as Stats | null;
@@ -140,9 +143,13 @@ export default function ProfilePage() {
         if (!c?.challenger || !c?.challenged) return;
         events.push({ playerA: c.challenger, playerB: c.challenged, winner: m.winner, pvp_type: m.pvp_type as PvpType, created_at: m.created_at });
       });
+      (weeklyAssignmentsRes.data as any[] | null)?.forEach((m) => {
+        if (!m.player_b || !m.winner) return;
+        events.push({ playerA: m.player_a, playerB: m.player_b, winner: m.winner, pvp_type: m.pvp_type as PvpType, created_at: m.created_at });
+      });
 
       const userIds = ((usersRes.data ?? []) as { id: string }[]).map((u) => u.id);
-      const elo = computeElo(userIds, events);
+      const elo = applyEloAdjustments(computeElo(userIds, events), (eloAdjustmentsRes.data as any[]) ?? []);
       const own = elo[user.id];
       if (own) {
         const byType: Record<string, number> = {};

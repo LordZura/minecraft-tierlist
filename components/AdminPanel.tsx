@@ -30,6 +30,7 @@ type Challenge = {
   winner: string | null;
   challenger_wins: number;
   challenged_wins: number;
+  pvp_type: string;
   created_at: string;
   ch?: { username: string };
   cd?: { username: string };
@@ -72,13 +73,13 @@ export function AdminPanel() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [overrides, setOverrides] = useState<Record<string, OverrideRow>>({});
   const [adminLogs, setAdminLogs] = useState<any[]>([]);
-  const [challengeTypes, setChallengeTypes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
 
   const [editUserId, setEditUserId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
+  const [editReason, setEditReason] = useState('');
 
   useEffect(() => {
     const user = getSessionUser();
@@ -94,13 +95,12 @@ export function AdminPanel() {
 
   async function loadAll() {
     setLoading(true);
-    const [fRes, cRes, uRes, lRes, oRes, mRes] = await Promise.all([
+    const [fRes, cRes, uRes, lRes, oRes] = await Promise.all([
       supabase.from('fight_logs').select('*, p1:users!fight_logs_player1_fkey(username), p2:users!fight_logs_player2_fkey(username), w:users!fight_logs_winner_fkey(username)').order('created_at', { ascending: false }).limit(100),
       supabase.from('challenges').select('*, ch:users!challenges_challenger_fkey(username), cd:users!challenges_challenged_fkey(username)').order('created_at', { ascending: false }).limit(100),
       supabase.from('users').select('id, username, created_at').order('created_at', { ascending: false }),
       supabase.from('admin_logs').select('*, admin:users!admin_logs_admin_id_fkey(username)').order('created_at', { ascending: false }).limit(100),
       supabase.from('user_admin_overrides').select('*'),
-      supabase.from('challenge_matches').select('challenge_id,pvp_type,match_number').order('match_number', { ascending: false }).limit(500),
     ]);
 
     setFights((fRes.data as FightLog[]) ?? []);
@@ -113,12 +113,6 @@ export function AdminPanel() {
       map[row.user_id] = row;
     });
     setOverrides(map);
-
-    const typeMap: Record<string, string> = {};
-    (mRes.data as any[] | null)?.forEach((m) => {
-      if (!typeMap[m.challenge_id]) typeMap[m.challenge_id] = m.pvp_type;
-    });
-    setChallengeTypes(typeMap);
 
     setLoading(false);
   }
@@ -209,6 +203,7 @@ export function AdminPanel() {
       total_losses_override: ov?.total_losses_override?.toString() ?? '',
       ...Object.fromEntries(ELO_FIELDS.map((field) => [`elo_${field}_override`, (ov as any)?.[`elo_${field}_override`]?.toString() ?? ''])),
     });
+    setEditReason('');
   }
 
   async function saveUserOverrides(userId: string) {
@@ -224,22 +219,23 @@ export function AdminPanel() {
       }
     }
 
-    const { data, error } = await supabase
-      .from('user_admin_overrides')
-      .upsert(payload, { onConflict: 'user_id' })
-      .select('*')
-      .single();
+    const res = await fetch('/api/admin/overrides', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-id': getSessionUser()?.id ?? '' },
+      body: JSON.stringify({ ...payload, reason: editReason }),
+    });
+    const body = await res.json();
 
-    if (error) {
-      setMsg(error.message);
+    if (!res.ok) {
+      setMsg(body.error);
       setActing(null);
       return;
     }
 
-    setOverrides((prev) => ({ ...prev, [userId]: data as OverrideRow }));
-    await logAction('set_user_override', 'user', userId, payload);
+    setOverrides((prev) => ({ ...prev, [userId]: body.override as OverrideRow }));
     setEditUserId(null);
     setEditValues({});
+    setEditReason('');
     setMsg('User overrides saved.');
     setActing(null);
   }
@@ -340,7 +336,7 @@ export function AdminPanel() {
                   <tr key={c.id}>
                     <td>{(c.ch as any)?.username ?? '?'}</td>
                     <td>{(c.cd as any)?.username ?? '?'}</td>
-                    <td><span className="badge badge-muted">{challengeTypes[c.id] ?? '—'}</span></td>
+                    <td><span className="badge badge-muted">{c.pvp_type}</span></td>
                     <td><span className={`badge ${c.status === 'completed' ? 'badge-green' : c.status === 'accepted' ? 'badge-gold' : c.status === 'rejected' ? 'badge-red' : 'badge-muted'}`}>{c.status}</span></td>
                     <td>{c.challenger_wins} - {c.challenged_wins}</td>
                     <td>{new Date(c.created_at).toLocaleDateString()}</td>
@@ -376,18 +372,24 @@ export function AdminPanel() {
                     <td>{new Date(u.created_at).toLocaleDateString()}</td>
                     <td>
                       {editUserId === u.id ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(120px, 1fr))', gap: 6, minWidth: 560 }}>
-                          {[
-                            ['total_points_override', 'Points'],
-                            ['total_wins_override', 'Wins'],
-                            ['total_losses_override', 'Losses'],
-                            ...ELO_FIELDS.map((k) => [`elo_${k}_override`, `ELO ${k}`]),
-                          ].map(([key, label]) => (
-                            <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.72rem' }}>
-                              {label}
-                              <input className="input" value={editValues[key] ?? ''} onChange={(e) => setEditValues((p) => ({ ...p, [key]: e.target.value }))} />
-                            </label>
-                          ))}
+                        <div style={{ display: 'grid', gap: 8, minWidth: 560 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(120px, 1fr))', gap: 6 }}>
+                            {[
+                              ['total_points_override', 'Points'],
+                              ['total_wins_override', 'Wins'],
+                              ['total_losses_override', 'Losses'],
+                              ...ELO_FIELDS.map((k) => [`elo_${k}_override`, `ELO ${k}`]),
+                            ].map(([key, label]) => (
+                              <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.72rem' }}>
+                                {label}
+                                <input className="input" value={editValues[key] ?? ''} onChange={(e) => setEditValues((p) => ({ ...p, [key]: e.target.value }))} />
+                              </label>
+                            ))}
+                          </div>
+                          <label style={{ fontSize: '0.72rem' }}>
+                            Reason for audit history
+                            <input className="input" value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="Why are you changing this user?" />
+                          </label>
                         </div>
                       ) : (
                         <span className="badge badge-muted">{overrides[u.id] ? 'Custom set' : 'Default computed'}</span>

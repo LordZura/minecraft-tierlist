@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "@/lib/supabaseRouteClient";
 import { getRequestUser } from "@/lib/routeAuth";
+import { isPvpType } from "@/lib/pvp";
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseRouteClient();
@@ -10,10 +11,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { challenged } = await req.json();
+  const { challenged, pvp_type } = await req.json();
 
-  if (!challenged) {
-    return NextResponse.json({ error: "Missing challenged player." }, { status: 400 });
+  if (!challenged || !pvp_type) {
+    return NextResponse.json({ error: "Missing challenged player or PvP type." }, { status: 400 });
+  }
+  if (!isPvpType(pvp_type)) {
+    return NextResponse.json({ error: "Invalid PvP type." }, { status: 400 });
   }
 
   if (challenged === user.id) {
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   const { data: challenge, error } = await supabase
     .from("challenges")
-    .insert({ challenger: user.id, challenged, status: "pending" })
+    .insert({ challenger: user.id, challenged, pvp_type, status: "pending" })
     .select()
     .single();
 

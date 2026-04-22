@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getSessionUser } from '@/lib/authSession';
+import { PVP_TYPES, type PvpType } from '@/lib/pvp';
 
 export function ChallengeForm() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export function ChallengeForm() {
   const [opponent, setOpponent] = useState('');
   const [playerSearch, setPlayerSearch] = useState('');
   const [loading, setLoading]   = useState(false);
+  const [pvpType, setPvpType]   = useState<PvpType>('sword');
   const [error, setError]       = useState('');
   const [success, setSuccess]   = useState('');
 
@@ -39,14 +41,14 @@ export function ChallengeForm() {
     e.preventDefault();
     setError('');
     setSuccess('');
-    if (!opponent) { setError('Select an opponent first.'); return; }
+    if (!opponent || !pvpType) { setError('Select an opponent and PvP type first.'); return; }
 
     setLoading(true);
     try {
       const res = await fetch('/api/challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': myId ?? '' },
-        body: JSON.stringify({ challenged: opponent }),
+        body: JSON.stringify({ challenged: opponent, pvp_type: pvpType }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -119,6 +121,19 @@ export function ChallengeForm() {
         </div>
 
         {/* Rules info */}
+        <div>
+          <label className="font-mono" style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: 6 }}>
+            Challenge PvP Type *
+          </label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {PVP_TYPES.map((t) => (
+              <button key={t} type="button" onClick={() => setPvpType(t)} className={pvpType === t ? 'badge badge-gold' : 'badge badge-muted'} style={{ cursor: 'pointer', padding: '6px 12px' }}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div
           style={{
             padding: '14px 16px',
@@ -131,7 +146,8 @@ export function ChallengeForm() {
             Challenge Rules
           </p>
           <ul style={{ color: 'var(--color-text-dim)', fontSize: '0.85rem', lineHeight: 1.7, listStyle: 'none', padding: 0 }}>
-            <li>• 10 matches total, majority wins the series</li>
+            <li>• 10 total rounds, majority wins the series</li>
+            <li>• PvP type is locked when challenge is sent</li>
             <li>• Opponent must accept before matches begin</li>
             <li>• Results affect global rankings (+20/−10 pts)</li>
             <li>• 3-day cooldown after a loss to the same player</li>

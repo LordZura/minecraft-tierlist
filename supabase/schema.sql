@@ -71,6 +71,7 @@ create table public.challenges (
   id uuid primary key default gen_random_uuid(),
   challenger uuid not null references public.users(id) on delete cascade,
   challenged uuid not null references public.users(id) on delete cascade,
+  pvp_type text not null default 'sword',
   status text not null default 'pending',
   winner uuid references public.users(id) on delete set null,
   challenger_wins integer not null default 0,
@@ -79,6 +80,7 @@ create table public.challenges (
   completed_at timestamptz,
   constraint challenges_players_distinct_chk check (challenger <> challenged),
   constraint challenges_status_chk check (status in ('pending','accepted','rejected','completed')),
+  constraint challenges_pvp_type_chk check (pvp_type in ('crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow')),
   constraint challenges_win_counts_chk check (challenger_wins >= 0 and challenged_wins >= 0 and challenger_wins <= 10 and challenged_wins <= 10),
   constraint challenges_completed_winner_chk check (
     (status <> 'completed')
@@ -98,9 +100,14 @@ create table public.challenge_matches (
   match_number integer not null,
   winner uuid not null references public.users(id) on delete cascade,
   pvp_type text not null,
+  challenger_round_wins integer not null default 1,
+  challenged_round_wins integer not null default 0,
   score text,
   created_at timestamptz not null default now(),
   constraint challenge_matches_match_number_chk check (match_number between 1 and 10),
+  constraint challenge_matches_round_wins_chk check (
+    challenger_round_wins >= 0 and challenged_round_wins >= 0 and challenger_round_wins <= 10 and challenged_round_wins <= 10
+  ),
   constraint challenge_matches_pvp_type_chk check (pvp_type in ('crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow')),
   unique (challenge_id, match_number)
 );
@@ -135,6 +142,105 @@ create table public.admin_logs (
 );
 
 create index admin_logs_admin_idx on public.admin_logs(admin_id, created_at desc);
+
+-- USER ADMIN OVERRIDES
+create table public.user_admin_overrides (
+  user_id uuid primary key references public.users(id) on delete cascade,
+  total_points_override integer,
+  total_wins_override integer,
+  total_losses_override integer,
+  elo_overall_override integer,
+  elo_average_override integer,
+  elo_crystal_override integer,
+  elo_sword_override integer,
+  elo_axe_override integer,
+  elo_uhc_override integer,
+  elo_manhunt_override integer,
+  elo_mace_override integer,
+  elo_smp_override integer,
+  elo_cart_override integer,
+  elo_bow_override integer,
+  updated_at timestamptz not null default now()
+);
+
+create table public.admin_override_history (
+  id uuid primary key default gen_random_uuid(),
+  admin_id uuid not null references public.users(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  previous_values jsonb not null,
+  new_values jsonb not null,
+  reason text,
+  created_at timestamptz not null default now()
+);
+
+create index admin_override_history_user_idx on public.admin_override_history(user_id, created_at desc);
+
+-- WEEKLY REQUIRED PVP CYCLES
+create table public.weekly_pvp_cycles (
+  id uuid primary key default gen_random_uuid(),
+  start_at timestamptz not null,
+  end_at timestamptz not null,
+  status text not null default 'active',
+  penalties_applied boolean not null default false,
+  created_at timestamptz not null default now(),
+  finalized_at timestamptz,
+  constraint weekly_pvp_cycles_status_chk check (status in ('active', 'completed')),
+  constraint weekly_pvp_cycles_range_chk check (end_at > start_at)
+);
+
+create unique index weekly_pvp_active_unique on public.weekly_pvp_cycles(status) where status = 'active';
+
+create table public.weekly_cycle_requirements (
+  id uuid primary key default gen_random_uuid(),
+  cycle_id uuid not null references public.weekly_pvp_cycles(id) on delete cascade,
+  pvp_type text not null,
+  rounds_required integer not null default 3,
+  created_at timestamptz not null default now(),
+  constraint weekly_cycle_requirements_type_chk check (pvp_type in ('crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow')),
+  constraint weekly_cycle_requirements_rounds_chk check (rounds_required between 1 and 10),
+  unique (cycle_id, pvp_type)
+);
+
+create table public.weekly_assignments (
+  id uuid primary key default gen_random_uuid(),
+  cycle_id uuid not null references public.weekly_pvp_cycles(id) on delete cascade,
+  pvp_type text not null,
+  player_a uuid not null references public.users(id) on delete cascade,
+  player_b uuid references public.users(id) on delete cascade,
+  ready_a_at timestamptz,
+  ready_b_at timestamptz,
+  ready_deadline_at timestamptz not null,
+  status text not null default 'assigned',
+  winner uuid references public.users(id) on delete set null,
+  win_reason text,
+  rounds_a integer,
+  rounds_b integer,
+  created_at timestamptz not null default now(),
+  resolved_at timestamptz,
+  constraint weekly_assignments_type_chk check (pvp_type in ('crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow')),
+  constraint weekly_assignments_status_chk check (status in ('assigned','ready','played','default_win','no_show','expired_both_unready')),
+  constraint weekly_assignments_distinct_chk check (player_b is null or player_a <> player_b),
+  constraint weekly_assignments_rounds_chk check (
+    (rounds_a is null and rounds_b is null)
+    or (rounds_a is not null and rounds_b is not null and rounds_a >= 0 and rounds_b >= 0 and rounds_a <= 10 and rounds_b <= 10)
+  )
+);
+
+create index weekly_assignments_cycle_idx on public.weekly_assignments(cycle_id, pvp_type);
+create index weekly_assignments_player_a_idx on public.weekly_assignments(player_a, created_at desc);
+create index weekly_assignments_player_b_idx on public.weekly_assignments(player_b, created_at desc);
+
+create table public.elo_adjustments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  pvp_type text not null,
+  delta integer not null,
+  reason text not null,
+  cycle_id uuid references public.weekly_pvp_cycles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  constraint elo_adjustments_type_chk check (pvp_type in ('crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow')),
+  unique (user_id, pvp_type, cycle_id, reason)
+);
 
 -- Auto-updated timestamps for users
 create or replace function public.set_updated_at()
@@ -210,3 +316,9 @@ alter table public.challenges disable row level security;
 alter table public.challenge_matches disable row level security;
 alter table public.notifications disable row level security;
 alter table public.admin_logs disable row level security;
+alter table public.user_admin_overrides disable row level security;
+alter table public.admin_override_history disable row level security;
+alter table public.weekly_pvp_cycles disable row level security;
+alter table public.weekly_cycle_requirements disable row level security;
+alter table public.weekly_assignments disable row level security;
+alter table public.elo_adjustments disable row level security;

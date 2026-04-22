@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { calcChallengePoints, calcFightLogPoints } from '@/lib/points';
 import { computeElo, PVP_TYPES, type EloEvent } from '@/utils/elo';
+import { applyEloAdjustments } from '@/lib/eloAdjustments';
 
 type Player = {
   id: string;
@@ -53,15 +54,19 @@ export default function RankingTable() {
       { data: challenges, error: challengesError },
       { data: challengeMatches, error: challengeMatchesError },
       { data: overrides, error: overridesError },
+      { data: weeklyAssignments, error: weeklyAssignmentsError },
+      { data: eloAdjustments, error: eloAdjustmentsError },
     ] = await Promise.all([
       supabase.from('users').select('id, username'),
       supabase.from('fight_logs').select('player1, player2, winner, pvp_type, created_at').eq('is_confirmed', true).eq('rejected', false),
       supabase.from('challenges').select('challenger, challenged, winner, status').eq('status', 'completed'),
       supabase.from('challenge_matches').select('winner, pvp_type, created_at, challenge:challenges!challenge_matches_challenge_id_fkey(challenger, challenged)'),
       supabase.from('user_admin_overrides').select('*'),
+      supabase.from('weekly_assignments').select('player_a,player_b,winner,pvp_type,created_at,status').in('status', ['played', 'default_win']),
+      supabase.from('elo_adjustments').select('user_id,pvp_type,delta'),
     ]);
 
-    if (usersError || fightsError || challengesError || challengeMatchesError || overridesError || !users) {
+    if (usersError || fightsError || challengesError || challengeMatchesError || overridesError || weeklyAssignmentsError || eloAdjustmentsError || !users) {
       setPlayers([]);
       setLoading(false);
       return;
@@ -141,8 +146,18 @@ export default function RankingTable() {
         created_at: m.created_at,
       });
     });
+    (weeklyAssignments ?? []).forEach((m: any) => {
+      if (!m.player_b || !m.winner) return;
+      eloEvents.push({
+        playerA: m.player_a,
+        playerB: m.player_b,
+        winner: m.winner,
+        pvp_type: m.pvp_type as (typeof PVP_TYPES)[number],
+        created_at: m.created_at,
+      });
+    });
 
-    const elo = computeElo(users.map((u) => u.id), eloEvents);
+    const elo = applyEloAdjustments(computeElo(users.map((u) => u.id), eloEvents), (eloAdjustments as any[]) ?? []);
 
     users.forEach((u) => {
       const p = stats.get(u.id);
@@ -239,7 +254,7 @@ export default function RankingTable() {
           </div>
         ) : (
           <>
-          <div className="mobile-only" style={{ padding: 12, display: 'grid', gap: 10 }}>
+          <div className="mobile-only" style={{ padding: 12, gap: 10 }}>
             {filtered.map((p) => {
               const r = rankLabel(p.rank);
               return (

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getSessionUser } from '@/lib/authSession';
 import { ChallengeForm } from '@/components/ChallengeForm';
+import { WeeklyCyclePanel } from '@/components/WeeklyCyclePanel';
 
 type Challenge = {
   id: string;
@@ -15,15 +16,12 @@ type Challenge = {
   winner: string | null;
   challenger_wins: number;
   challenged_wins: number;
+  pvp_type: string;
   created_at: string;
   ch_user?: { username: string };
   cd_user?: { username: string };
 };
 
-type ChallengeMatchType = {
-  challenge_id: string;
-  pvp_type: string;
-};
 
 export default function ChallengePage() {
   const router = useRouter();
@@ -31,7 +29,6 @@ export default function ChallengePage() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [loading, setLoading]       = useState(true);
   const [showForm, setShowForm]     = useState(false);
-  const [challengeTypes, setChallengeTypes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const user = getSessionUser();
@@ -49,23 +46,6 @@ export default function ChallengePage() {
     const challengeRows = (data as Challenge[]) ?? [];
     setChallenges(challengeRows);
 
-    if (challengeRows.length > 0) {
-      const challengeIds = challengeRows.map((c) => c.id);
-      const { data: matches } = await supabase
-        .from('challenge_matches')
-        .select('challenge_id,pvp_type')
-        .in('challenge_id', challengeIds)
-        .order('match_number', { ascending: false });
-
-      const typeMap: Record<string, string> = {};
-      ((matches as ChallengeMatchType[] | null) ?? []).forEach((m) => {
-        if (!typeMap[m.challenge_id]) typeMap[m.challenge_id] = m.pvp_type;
-      });
-      setChallengeTypes(typeMap);
-    } else {
-      setChallengeTypes({});
-    }
-
     setLoading(false);
   }
 
@@ -82,7 +62,7 @@ export default function ChallengePage() {
           </p>
           <h1 className="font-pixel page-title" style={{ color: 'var(--color-text)' }}>Challenges</h1>
           <p style={{ color: 'var(--color-text-dim)', fontSize: '0.9rem', marginTop: 6 }}>
-            10-match series. Majority wins. 3-day cooldown after a loss.
+            10-round series in one locked PvP type. Majority wins. 3-day cooldown after a loss.
           </p>
         </div>
         <button
@@ -95,6 +75,7 @@ export default function ChallengePage() {
       </div>
 
       {showForm && <div style={{ marginBottom: 28 }}><ChallengeForm /></div>}
+      <WeeklyCyclePanel />
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60 }}>
@@ -133,7 +114,7 @@ export default function ChallengePage() {
                     <span className="font-pixel" style={{ fontSize: '1.6rem' }}>{c.challenged_wins}</span>
                     <span className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--color-muted)' }}>({total}/10)</span>
                   </div>
-                  {challengeTypes[c.id] && <span className="badge badge-muted">{challengeTypes[c.id]}</span>}
+                  <span className="badge badge-muted">{c.pvp_type}</span>
                   <span className={`badge ${statusColor[c.status] ?? 'badge-muted'}`}>{c.status}</span>
                   <span style={{ color: 'var(--color-muted)' }}>›</span>
                 </div>
