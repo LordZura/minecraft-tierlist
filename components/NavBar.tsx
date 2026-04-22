@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { clearSessionUser, getSessionUser, type SessionUser } from '@/lib/authSession';
@@ -15,13 +16,22 @@ const NAV_LINKS = [
 ];
 
 const HEADER_HEIGHT = 62;
+const MENU_ANIMATION_MS = 220;
 
 export function NavBar() {
   const router = useRouter();
   const pathname = usePathname();
+
   const [user, setUser] = useState<SessionUser | null>(null);
   const [unread, setUnread] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [menuEntered, setMenuEntered] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const refresh = () => {
@@ -41,6 +51,34 @@ export function NavBar() {
   }, [pathname]);
 
   useEffect(() => {
+    let timeoutId: number | undefined;
+    let frame1: number | undefined;
+    let frame2: number | undefined;
+
+    if (mobileOpen) {
+      setMenuVisible(true);
+
+      frame1 = window.requestAnimationFrame(() => {
+        frame2 = window.requestAnimationFrame(() => {
+          setMenuEntered(true);
+        });
+      });
+    } else {
+      setMenuEntered(false);
+
+      timeoutId = window.setTimeout(() => {
+        setMenuVisible(false);
+      }, MENU_ANIMATION_MS);
+    }
+
+    return () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      if (frame1) window.cancelAnimationFrame(frame1);
+      if (frame2) window.cancelAnimationFrame(frame2);
+    };
+  }, [mobileOpen]);
+
+  useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') setMobileOpen(false);
     }
@@ -57,7 +95,12 @@ export function NavBar() {
   }, [mobileOpen]);
 
   async function loadProfile(userId: string) {
-    const { count } = await supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('read', false);
+    const { count } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('read', false);
+
     setUnread(count ?? 0);
   }
 
@@ -67,114 +110,408 @@ export function NavBar() {
     router.push('/');
   }
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(href + '/');
+
+  const mobileMenu =
+    mounted && menuVisible
+      ? createPortal(
+          <>
+            <button
+              type="button"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close menu"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: menuEntered
+                  ? 'rgba(2, 6, 4, 0.72)'
+                  : 'rgba(2, 6, 4, 0)',
+                border: 0,
+                padding: 0,
+                margin: 0,
+                zIndex: 9998,
+                cursor: 'pointer',
+                opacity: menuEntered ? 1 : 0,
+                transition: `opacity ${MENU_ANIMATION_MS}ms ease, background ${MENU_ANIMATION_MS}ms ease`,
+              }}
+            />
+
+            <aside
+              aria-label="Mobile navigation"
+              style={{
+                position: 'fixed',
+                top: 0,
+                right: 0,
+                width: 'min(92vw, 380px)',
+                maxWidth: '92vw',
+                height: '100dvh',
+                background: 'rgba(10, 15, 10, 0.985)',
+                borderLeft: '1px solid var(--color-border)',
+                boxShadow: '-12px 0 30px rgba(0,0,0,0.35)',
+                zIndex: 9999,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                transform: menuEntered ? 'translateX(0)' : 'translateX(100%)',
+                opacity: menuEntered ? 1 : 0.98,
+                transition: `transform ${MENU_ANIMATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1), opacity ${MENU_ANIMATION_MS}ms ease`,
+                willChange: 'transform, opacity',
+              }}
+            >
+              <div
+                style={{
+                  height: HEADER_HEIGHT,
+                  minHeight: HEADER_HEIGHT,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  padding: '0 14px',
+                  borderBottom: '1px solid var(--color-border)',
+                  background: 'rgba(8,12,8,0.96)',
+                }}
+              >
+                <span
+                  className="font-pixel glow-green"
+                  style={{
+                    fontSize: '1rem',
+                    color: 'var(--color-green)',
+                    letterSpacing: '0.08em',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  ⚔ MC<span style={{ color: 'var(--color-gold)' }}>PvP</span>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setMobileOpen(false)}
+                  className="btn btn-ghost"
+                  aria-label="Close navigation menu"
+                  style={{
+                    minWidth: 44,
+                    width: 44,
+                    height: 44,
+                    padding: 0,
+                    fontSize: '1rem',
+                    flexShrink: 0,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  padding: '14px',
+                  display: 'grid',
+                  alignContent: 'start',
+                  gap: 14,
+                }}
+              >
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {NAV_LINKS.map((link, index) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      style={{
+                        textDecoration: 'none',
+                        padding: '14px 14px',
+                        borderRadius: 10,
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        position: 'relative',
+                        color: isActive(link.href)
+                          ? 'var(--color-green)'
+                          : 'var(--color-text)',
+                        background: isActive(link.href)
+                          ? 'rgba(74,222,128,0.14)'
+                          : 'rgba(127,154,132,0.08)',
+                        border: isActive(link.href)
+                          ? '1px solid rgba(74,222,128,0.24)'
+                          : '1px solid rgba(255,255,255,0.04)',
+                        transform: menuEntered
+                          ? 'translateX(0)'
+                          : 'translateX(16px)',
+                        opacity: menuEntered ? 1 : 0,
+                        transition: `transform ${MENU_ANIMATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1) ${index * 24}ms, opacity ${MENU_ANIMATION_MS}ms ease ${index * 24}ms`,
+                      }}
+                    >
+                      {link.label}
+                      {link.href === '/notifications' && unread > 0 && (
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            color: 'var(--color-red)',
+                            fontWeight: 800,
+                          }}
+                        >
+                          ({unread > 9 ? '9+' : unread})
+                        </span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+
+                <div
+                  style={{
+                    borderTop: '1px solid var(--color-border)',
+                    paddingTop: 14,
+                    display: 'grid',
+                    gap: 8,
+                    transform: menuEntered ? 'translateX(0)' : 'translateX(16px)',
+                    opacity: menuEntered ? 1 : 0,
+                    transition: `transform ${MENU_ANIMATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1) 90ms, opacity ${MENU_ANIMATION_MS}ms ease 90ms`,
+                  }}
+                >
+                  {user ? (
+                    <>
+                      <Link
+                        href={`/profile/${user.username}`}
+                        className="btn btn-ghost"
+                        style={{
+                          textDecoration: 'none',
+                          justifyContent: 'flex-start',
+                          paddingInline: 14,
+                          minHeight: 46,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: '100%',
+                        }}
+                      >
+                        @{user.username}
+                      </Link>
+
+                      <button
+                        onClick={handleLogout}
+                        className="btn btn-danger"
+                        style={{
+                          minHeight: 46,
+                          justifyContent: 'center',
+                        }}
+                      >
+                        Logout
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href="/login"
+                        className="btn btn-ghost"
+                        style={{
+                          textDecoration: 'none',
+                          minHeight: 46,
+                          justifyContent: 'center',
+                        }}
+                      >
+                        Login
+                      </Link>
+
+                      <Link
+                        href="/register"
+                        className="btn btn-primary"
+                        style={{
+                          textDecoration: 'none',
+                          minHeight: 46,
+                          justifyContent: 'center',
+                        }}
+                      >
+                        Register
+                      </Link>
+                    </>
+                  )}
+                </div>
+              </div>
+            </aside>
+          </>,
+          document.body
+        )
+      : null;
 
   return (
-    <nav style={{ background: 'rgba(8,12,8,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--color-border)', position: 'sticky', top: 0, zIndex: 60 }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 14px', display: 'flex', alignItems: 'center', height: HEADER_HEIGHT, gap: 12, position: 'relative' }}>
-        <Link href="/" style={{ textDecoration: 'none', flexShrink: 1, minWidth: 0, marginRight: 'auto' }}>
-          <span className="font-pixel glow-green" style={{ fontSize: 'clamp(1.15rem, 5vw, 1.5rem)', color: 'var(--color-green)', letterSpacing: '0.08em', display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            ⚔ MC<span style={{ color: 'var(--color-gold)' }}>PvP</span>
-          </span>
-        </Link>
-
-        <div style={{ gap: 4, flex: 1, minWidth: 0 }} className="hidden sm:flex">
-          {NAV_LINKS.map((link) => (
-            <Link key={link.href} href={link.href} style={{ textDecoration: 'none', padding: '10px 12px', borderRadius: 8, fontSize: '0.83rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', position: 'relative', color: isActive(link.href) ? 'var(--color-green)' : 'var(--color-text-dim)', background: isActive(link.href) ? 'rgba(74,222,128,0.08)' : 'transparent', transition: 'all 0.15s' }}>
-              {link.label}
-              {link.href === '/notifications' && unread > 0 && (
-                <span style={{ position: 'absolute', top: 4, right: 4, background: 'var(--color-red)', color: '#fff', fontSize: '0.58rem', borderRadius: '999px', minWidth: 16, height: 16, padding: '0 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-mono)' }}>
-                  {unread > 9 ? '9+' : unread}
-                </span>
-              )}
-            </Link>
-          ))}
-        </div>
-
-        <div style={{ alignItems: 'center', gap: 10 }} className="hidden sm:flex">
-          {user ? (
-            <>
-              <Link href={`/profile/${user.username}`} style={{ textDecoration: 'none', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)', maxWidth: 160, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {user.username}
-              </Link>
-              <button onClick={handleLogout} className="btn btn-ghost" style={{ padding: '4px 12px', fontSize: '0.75rem' }}>
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/login" className="btn btn-ghost" style={{ padding: '6px 14px', textDecoration: 'none', fontSize: '0.8rem' }}>Login</Link>
-              <Link href="/register" className="btn btn-primary" style={{ padding: '6px 14px', textDecoration: 'none', fontSize: '0.8rem' }}>Register</Link>
-            </>
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setMobileOpen((v) => !v)}
-          className="btn btn-ghost sm:hidden"
-          aria-label="Toggle navigation menu"
-          aria-expanded={mobileOpen}
-          style={{ padding: '0 12px', minWidth: 44, height: 44, fontSize: '1rem', marginLeft: 8, position: 'relative', zIndex: 70, flexShrink: 0 }}
+    <>
+      <nav
+        style={{
+          background: 'rgba(8,12,8,0.92)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid var(--color-border)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 60,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: '0 auto',
+            padding: '0 14px',
+            display: 'flex',
+            alignItems: 'center',
+            height: HEADER_HEIGHT,
+            gap: 12,
+            position: 'relative',
+          }}
         >
-          {mobileOpen ? '✕' : '☰'}
-        </button>
-      </div>
-
-      {mobileOpen && (
-        <>
-          <button
-            type="button"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close menu"
-            style={{ position: 'fixed', inset: 0, top: HEADER_HEIGHT, background: 'rgba(2, 6, 4, 0.74)', border: 0, zIndex: 61 }}
-          />
-
-          <div
+          <Link
+            href="/"
             style={{
-              position: 'fixed',
-              top: HEADER_HEIGHT,
-              right: 0,
-              bottom: 0,
-              width: 'min(92vw, 380px)',
-              borderLeft: '1px solid var(--color-border)',
-              padding: '12px 14px 16px',
-              display: 'grid',
-              gap: 10,
-              background: 'rgba(10,15,10,0.98)',
-              zIndex: 62,
-              overflowY: 'auto',
+              textDecoration: 'none',
+              flexShrink: 1,
+              minWidth: 0,
+              marginRight: 'auto',
             }}
           >
-            <div style={{ display: 'grid', gap: 8 }}>
-              {NAV_LINKS.map((link) => (
-                <Link key={link.href} href={link.href} style={{ textDecoration: 'none', padding: '12px 14px', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', position: 'relative', color: isActive(link.href) ? 'var(--color-green)' : 'var(--color-text-dim)', background: isActive(link.href) ? 'rgba(74,222,128,0.12)' : 'rgba(127,154,132,0.08)' }}>
-                  {link.label}
-                  {link.href === '/notifications' && unread > 0 && <span style={{ marginLeft: 8, color: 'var(--color-red)' }}>({unread > 9 ? '9+' : unread})</span>}
-                </Link>
-              ))}
-            </div>
+            <span
+              className="font-pixel glow-green"
+              style={{
+                fontSize: 'clamp(1.15rem, 5vw, 1.5rem)',
+                color: 'var(--color-green)',
+                letterSpacing: '0.08em',
+                display: 'inline-block',
+                maxWidth: '100%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ⚔ MC<span style={{ color: 'var(--color-gold)' }}>PvP</span>
+            </span>
+          </Link>
 
-            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12, display: 'grid', gap: 8 }}>
-              {user ? (
-                <>
-                  <Link href={`/profile/${user.username}`} className="btn btn-ghost" style={{ textDecoration: 'none', justifyContent: 'flex-start', paddingInline: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
-                    @{user.username}
-                  </Link>
-                  <button onClick={handleLogout} className="btn btn-danger" style={{ justifyContent: 'center' }}>
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link href="/login" className="btn btn-ghost" style={{ textDecoration: 'none' }}>Login</Link>
-                  <Link href="/register" className="btn btn-primary" style={{ textDecoration: 'none' }}>Register</Link>
-                </>
-              )}
-            </div>
+          <div style={{ gap: 4, flex: 1, minWidth: 0 }} className="hidden sm:flex">
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                style={{
+                  textDecoration: 'none',
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  fontSize: '0.83rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  position: 'relative',
+                  color: isActive(link.href)
+                    ? 'var(--color-green)'
+                    : 'var(--color-text-dim)',
+                  background: isActive(link.href)
+                    ? 'rgba(74,222,128,0.08)'
+                    : 'transparent',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {link.label}
+                {link.href === '/notifications' && unread > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      background: 'var(--color-red)',
+                      color: '#fff',
+                      fontSize: '0.58rem',
+                      borderRadius: '999px',
+                      minWidth: 16,
+                      height: 16,
+                      padding: '0 4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    {unread > 9 ? '9+' : unread}
+                  </span>
+                )}
+              </Link>
+            ))}
           </div>
-        </>
-      )}
-    </nav>
+
+          <div style={{ alignItems: 'center', gap: 10 }} className="hidden sm:flex">
+            {user ? (
+              <>
+                <Link
+                  href={`/profile/${user.username}`}
+                  style={{
+                    textDecoration: 'none',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--color-text)',
+                    maxWidth: 160,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {user.username}
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="btn btn-ghost"
+                  style={{ padding: '4px 12px', fontSize: '0.75rem' }}
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="btn btn-ghost"
+                  style={{
+                    padding: '6px 14px',
+                    textDecoration: 'none',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  className="btn btn-primary"
+                  style={{
+                    padding: '6px 14px',
+                    textDecoration: 'none',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  Register
+                </Link>
+              </>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setMobileOpen((v) => !v)}
+            className="btn btn-ghost sm:hidden"
+            aria-label="Toggle navigation menu"
+            aria-expanded={mobileOpen}
+            style={{
+              padding: 0,
+              minWidth: 44,
+              width: 44,
+              height: 44,
+              fontSize: '1rem',
+              marginLeft: 8,
+              position: 'relative',
+              zIndex: 70,
+              flexShrink: 0,
+            }}
+          >
+            {mobileOpen ? '✕' : '☰'}
+          </button>
+        </div>
+      </nav>
+
+      {mobileMenu}
+    </>
   );
 }
