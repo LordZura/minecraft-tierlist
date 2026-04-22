@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseRouteClient } from "@/lib/supabaseRouteClient";
 import { getRequestUser } from "@/lib/routeAuth";
-import { resolveWinnerFromRounds, validateRounds } from '@/lib/challenge';
+import { resolveWinnerFromRounds, validateRounds } from '@/lib/weekly';
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseRouteClient();

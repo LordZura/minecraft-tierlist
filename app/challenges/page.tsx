@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getSessionUser } from '@/lib/authSession';
 import { ChallengeForm } from '@/components/ChallengeForm';
+import WeeklyEventPanel from '@/components/WeeklyEventPanel';
 
 type Challenge = {
   id: string;
@@ -70,6 +71,7 @@ export default function ChallengePage() {
         </button>
       </div>
 
+      <WeeklyEventPanel />
       {showForm && <div style={{ marginBottom: 28 }}><ChallengeForm /></div>}
 
       {loading ? (
