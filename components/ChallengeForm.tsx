@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { getSessionUser } from '@/lib/authSession';
+import { PVP_TYPES } from '@/lib/pvp';
 
 export function ChallengeForm() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export function ChallengeForm() {
   const [players, setPlayers]   = useState<{ id: string; username: string }[]>([]);
   const [opponent, setOpponent] = useState('');
   const [playerSearch, setPlayerSearch] = useState('');
+  const [challengeType, setChallengeType] = useState('');
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
   const [success, setSuccess]   = useState('');
@@ -39,19 +41,19 @@ export function ChallengeForm() {
     e.preventDefault();
     setError('');
     setSuccess('');
-    if (!opponent) { setError('Select an opponent first.'); return; }
+    if (!opponent || !challengeType) { setError('Select an opponent and PvP type first.'); return; }
 
     setLoading(true);
     try {
       const res = await fetch('/api/challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': myId ?? '' },
-        body: JSON.stringify({ challenged: opponent }),
+        body: JSON.stringify({ challenged: opponent, pvp_type: challengeType }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSuccess('Challenge sent! Waiting for the opponent to accept.');
-      setOpponent(''); setPlayerSearch('');
+      setOpponent(''); setPlayerSearch(''); setChallengeType('');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -118,6 +120,20 @@ export function ChallengeForm() {
           )}
         </div>
 
+
+        <div>
+          <label className="font-mono" style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--color-muted)', marginBottom: 6 }}>
+            Challenge PvP Type *
+          </label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {PVP_TYPES.map((t) => (
+              <button key={t} type="button" onClick={() => setChallengeType(t)} className={challengeType === t ? 'badge badge-gold' : 'badge badge-muted'} style={{ cursor: 'pointer', border: challengeType === t ? '1px solid var(--color-gold)' : undefined }}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Rules info */}
         <div
           style={{
@@ -131,7 +147,7 @@ export function ChallengeForm() {
             Challenge Rules
           </p>
           <ul style={{ color: 'var(--color-text-dim)', fontSize: '0.85rem', lineHeight: 1.7, listStyle: 'none', padding: 0 }}>
-            <li>• 10 matches total, majority wins the series</li>
+            <li>• Challenge type is locked for all rounds once sent</li>
             <li>• Opponent must accept before matches begin</li>
             <li>• Results affect global rankings (+20/−10 pts)</li>
             <li>• 3-day cooldown after a loss to the same player</li>
@@ -149,7 +165,7 @@ export function ChallengeForm() {
           </div>
         )}
 
-        <button type="submit" className="btn btn-primary" disabled={loading || !opponent} style={{ padding: '12px', width: '100%', fontSize: '0.95rem', background: opponent ? 'var(--color-gold)' : undefined, borderColor: opponent ? 'var(--color-gold)' : undefined, marginTop: 4 }}>
+        <button type="submit" className="btn btn-primary" disabled={loading || !opponent || !challengeType} style={{ padding: '12px', width: '100%', fontSize: '0.95rem', background: opponent ? 'var(--color-gold)' : undefined, borderColor: opponent ? 'var(--color-gold)' : undefined, marginTop: 4 }}>
           {loading ? 'Sending…' : '⚔ Send Challenge'}
         </button>
       </form>

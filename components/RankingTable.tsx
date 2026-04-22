@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { calcChallengePoints, calcFightLogPoints } from '@/lib/points';
-import { computeElo, PVP_TYPES, type EloEvent } from '@/utils/elo';
+import { computeElo, type EloEvent } from '@/utils/elo';
+import { PVP_TYPES } from '@/lib/pvp';
 
 type Player = {
   id: string;
@@ -53,15 +54,19 @@ export default function RankingTable() {
       { data: challenges, error: challengesError },
       { data: challengeMatches, error: challengeMatchesError },
       { data: overrides, error: overridesError },
+      { data: adjustments, error: adjustmentsError },
+      { data: penalties, error: penaltiesError },
     ] = await Promise.all([
       supabase.from('users').select('id, username'),
       supabase.from('fight_logs').select('player1, player2, winner, pvp_type, created_at').eq('is_confirmed', true).eq('rejected', false),
       supabase.from('challenges').select('challenger, challenged, winner, status').eq('status', 'completed'),
       supabase.from('challenge_matches').select('winner, pvp_type, created_at, challenge:challenges!challenge_matches_challenge_id_fkey(challenger, challenged)'),
       supabase.from('user_admin_overrides').select('*'),
+      supabase.from('admin_user_adjustments').select('*'),
+      supabase.from('weekly_pvp_penalties').select('*'),
     ]);
 
-    if (usersError || fightsError || challengesError || challengeMatchesError || overridesError || !users) {
+    if (usersError || fightsError || challengesError || challengeMatchesError || overridesError || adjustmentsError || penaltiesError || !users) {
       setPlayers([]);
       setLoading(false);
       return;
@@ -174,6 +179,34 @@ export default function RankingTable() {
       });
     });
 
+
+
+    const adjustmentByUser: Record<string, any[]> = {};
+    (adjustments ?? []).forEach((a: any) => {
+      adjustmentByUser[a.user_id] = adjustmentByUser[a.user_id] ?? [];
+      adjustmentByUser[a.user_id].push(a);
+    });
+
+    users.forEach((u) => {
+      const p = stats.get(u.id);
+      if (!p) return;
+      for (const a of adjustmentByUser[u.id] ?? []) {
+        p.total_points += a.points_delta ?? 0;
+        p.elo_overall += a.elo_overall_delta ?? 0;
+        p.elo_average += a.elo_average_delta ?? 0;
+        PVP_TYPES.forEach((t) => {
+          p.elo_by_type[t] += a[`elo_${t}_delta`] ?? 0;
+        });
+      }
+    });
+
+    (penalties ?? []).forEach((pen: any) => {
+      const p = stats.get(pen.user_id);
+      if (!p) return;
+      p.elo_by_type[pen.pvp_type] = (p.elo_by_type[pen.pvp_type] ?? 1000) + (pen.elo_delta ?? 0);
+      p.elo_average = Math.round(PVP_TYPES.reduce((acc, t) => acc + (p.elo_by_type[t] ?? 1000), 0) / PVP_TYPES.length);
+      p.elo_overall += Math.round((pen.elo_delta ?? 0) / 3);
+    });
     const ranked = [...stats.values()].sort((a, b) => {
       if (b.total_points !== a.total_points) return b.total_points - a.total_points;
       if (b.elo_overall !== a.elo_overall) return b.elo_overall - a.elo_overall;
@@ -239,7 +272,7 @@ export default function RankingTable() {
           </div>
         ) : (
           <>
-          <div className="mobile-only" style={{ padding: 12, display: 'grid', gap: 10 }}>
+          <div className="mobile-only" style={{ padding: 12, gap: 10 }}>
             {filtered.map((p) => {
               const r = rankLabel(p.rank);
               return (

@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     user_id: challenge.challenger,
     type: "challenge_result",
     related_id: challenge_id,
-    message: action === "accept" ? "Your challenge was accepted! Time to play." : "Your challenge was declined.",
+    message: action === "accept" ? `Your ${challenge.pvp_type ?? 'selected'} challenge was accepted!` : "Your challenge was declined.",
   });
 
   return NextResponse.json({ status: "ok" });

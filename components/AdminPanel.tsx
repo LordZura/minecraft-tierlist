@@ -6,6 +6,7 @@ import { getSessionUser, isAdminUnlocked, setAdminUnlocked } from '@/lib/authSes
 
 const ADMIN_PASSWORD = '123123';
 const ELO_FIELDS = ['overall', 'average', 'crystal', 'sword', 'axe', 'uhc', 'manhunt', 'mace', 'smp', 'cart', 'bow'] as const;
+const MAX_DELTA = 500;
 
 type FightLog = {
   id: string;
@@ -33,6 +34,7 @@ type Challenge = {
   created_at: string;
   ch?: { username: string };
   cd?: { username: string };
+  pvp_type?: string | null;
 };
 
 type UserRow = {
@@ -72,7 +74,6 @@ export function AdminPanel() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [overrides, setOverrides] = useState<Record<string, OverrideRow>>({});
   const [adminLogs, setAdminLogs] = useState<any[]>([]);
-  const [challengeTypes, setChallengeTypes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
@@ -94,13 +95,12 @@ export function AdminPanel() {
 
   async function loadAll() {
     setLoading(true);
-    const [fRes, cRes, uRes, lRes, oRes, mRes] = await Promise.all([
+    const [fRes, cRes, uRes, lRes, oRes] = await Promise.all([
       supabase.from('fight_logs').select('*, p1:users!fight_logs_player1_fkey(username), p2:users!fight_logs_player2_fkey(username), w:users!fight_logs_winner_fkey(username)').order('created_at', { ascending: false }).limit(100),
       supabase.from('challenges').select('*, ch:users!challenges_challenger_fkey(username), cd:users!challenges_challenged_fkey(username)').order('created_at', { ascending: false }).limit(100),
       supabase.from('users').select('id, username, created_at').order('created_at', { ascending: false }),
       supabase.from('admin_logs').select('*, admin:users!admin_logs_admin_id_fkey(username)').order('created_at', { ascending: false }).limit(100),
       supabase.from('user_admin_overrides').select('*'),
-      supabase.from('challenge_matches').select('challenge_id,pvp_type,match_number').order('match_number', { ascending: false }).limit(500),
     ]);
 
     setFights((fRes.data as FightLog[]) ?? []);
@@ -113,13 +113,6 @@ export function AdminPanel() {
       map[row.user_id] = row;
     });
     setOverrides(map);
-
-    const typeMap: Record<string, string> = {};
-    (mRes.data as any[] | null)?.forEach((m) => {
-      if (!typeMap[m.challenge_id]) typeMap[m.challenge_id] = m.pvp_type;
-    });
-    setChallengeTypes(typeMap);
-
     setLoading(false);
   }
 
@@ -224,6 +217,15 @@ export function AdminPanel() {
       }
     }
 
+
+    for (const [key, value] of Object.entries(payload)) {
+      if (key.endsWith('_override') && typeof value === 'number' && Math.abs(value) > 10000) {
+        setMsg(`${key} is out of allowed range.`);
+        setActing(null);
+        return;
+      }
+    }
+
     const { data, error } = await supabase
       .from('user_admin_overrides')
       .upsert(payload, { onConflict: 'user_id' })
@@ -237,6 +239,17 @@ export function AdminPanel() {
     }
 
     setOverrides((prev) => ({ ...prev, [userId]: data as OverrideRow }));
+    const prev = overrides[userId];
+    const deltaPayload: any = { admin_id: getSessionUser()?.id, user_id: userId, reason: 'manual override edit' };
+    const pointsDelta = (payload.total_points_override ?? 0) - (prev?.total_points_override ?? 0);
+    deltaPayload.points_delta = Math.max(-MAX_DELTA, Math.min(MAX_DELTA, pointsDelta));
+    ELO_FIELDS.forEach((field) => {
+      const key = `elo_${field}_override`;
+      const deltaKey = `elo_${field}_delta`;
+      const raw = (payload[key] ?? 0) - ((prev as any)?.[key] ?? 0);
+      deltaPayload[deltaKey] = Math.max(-MAX_DELTA, Math.min(MAX_DELTA, raw));
+    });
+    await supabase.from('admin_user_adjustments').insert(deltaPayload);
     await logAction('set_user_override', 'user', userId, payload);
     setEditUserId(null);
     setEditValues({});
@@ -340,7 +353,7 @@ export function AdminPanel() {
                   <tr key={c.id}>
                     <td>{(c.ch as any)?.username ?? '?'}</td>
                     <td>{(c.cd as any)?.username ?? '?'}</td>
-                    <td><span className="badge badge-muted">{challengeTypes[c.id] ?? '—'}</span></td>
+                    <td><span className="badge badge-muted">{c.pvp_type ?? '—'}</span></td>
                     <td><span className={`badge ${c.status === 'completed' ? 'badge-green' : c.status === 'accepted' ? 'badge-gold' : c.status === 'rejected' ? 'badge-red' : 'badge-muted'}`}>{c.status}</span></td>
                     <td>{c.challenger_wins} - {c.challenged_wins}</td>
                     <td>{new Date(c.created_at).toLocaleDateString()}</td>
