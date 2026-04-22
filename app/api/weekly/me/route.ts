@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseRouteClient } from '@/lib/supabaseRouteClient';
 import { getRequestUser } from '@/lib/routeAuth';
-import { syncWeeklyCycle } from '@/lib/weekly';
+import { getMatchupKey, syncWeeklyCycle } from '@/lib/weekly';
 
 export async function GET(req: NextRequest) {
   const supabase = await createSupabaseRouteClient();
@@ -13,7 +13,6 @@ export async function GET(req: NextRequest) {
   const { data: cycle } = await supabase
     .from('weekly_pvp_cycles')
     .select('*')
-    .eq('status', 'active')
     .order('start_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -44,11 +43,67 @@ export async function GET(req: NextRequest) {
     player_b_name: userMap[a.player_b] ?? 'Unknown',
   }));
 
+  const grouped = Object.values(
+    enrichedAssignments.reduce((acc: Record<string, any>, row: any) => {
+      const key = getMatchupKey(row);
+      const meIsA = row.player_a === user.id;
+      if (!acc[key]) {
+        acc[key] = {
+          id: row.id,
+          cycle_id: row.cycle_id,
+          pvp_type: row.pvp_type,
+          player_a: row.player_a,
+          player_b: row.player_b,
+          player_a_name: row.player_a_name,
+          player_b_name: row.player_b_name,
+          my_ready: !!(meIsA ? row.a_ready_at : row.b_ready_at),
+          opponent_ready: !!(meIsA ? row.b_ready_at : row.a_ready_at),
+          ready_by_at: row.ready_by_at,
+          unresolved_rounds: 0,
+          completed_rounds: 0,
+          my_wins: 0,
+          opponent_wins: 0,
+          status: 'pending',
+          has_default: false,
+        };
+      }
+
+      const item = acc[key];
+      if (row.status === 'pending' || row.status === 'ready') item.unresolved_rounds += 1;
+      if (row.status === 'completed') {
+        item.completed_rounds += 1;
+        const winnerIsMe = row.winner === user.id;
+        if (winnerIsMe) item.my_wins += 1;
+        else item.opponent_wins += 1;
+        if (row.win_type === 'default') item.has_default = true;
+      }
+      if (row.ready_by_at && (!item.ready_by_at || new Date(row.ready_by_at).getTime() > new Date(item.ready_by_at).getTime())) {
+        item.ready_by_at = row.ready_by_at;
+      }
+      return acc;
+    }, {}),
+  ).map((item: any) => {
+    const readyState = item.my_ready && item.opponent_ready;
+    const status =
+      item.unresolved_rounds === 0
+        ? item.has_default
+          ? 'default_win'
+          : 'completed'
+        : readyState
+          ? 'both_ready'
+          : item.my_ready
+            ? 'waiting_for_opponent'
+            : item.opponent_ready
+              ? 'waiting_for_you'
+              : 'result_pending';
+    return { ...item, status };
+  });
+
   const { data: history } = await supabase
     .from('weekly_pvp_cycles')
     .select('id,start_at,end_at,status,selected_pvp_types,finalized_at')
     .order('start_at', { ascending: false })
     .limit(6);
 
-  return NextResponse.json({ cycle, assignments: enrichedAssignments, progress: progress ?? [], history: history ?? [] });
+  return NextResponse.json({ cycle, assignments: grouped, progress: progress ?? [], history: history ?? [] });
 }

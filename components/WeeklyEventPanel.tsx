@@ -4,20 +4,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSessionUser } from '@/lib/authSession';
 
-type Assignment = {
+type Matchup = {
   id: string;
   pvp_type: string;
-  round_number: number;
   player_a: string;
   player_b: string;
   player_a_name: string;
   player_b_name: string;
-  a_ready_at: string | null;
-  b_ready_at: string | null;
+  my_ready: boolean;
+  opponent_ready: boolean;
   ready_by_at: string | null;
+  unresolved_rounds: number;
+  completed_rounds: number;
+  my_wins: number;
+  opponent_wins: number;
   status: string;
-  winner: string | null;
-  win_type: string | null;
+  has_default: boolean;
 };
 
 type Progress = {
@@ -27,16 +29,26 @@ type Progress = {
   penalty_applied: boolean;
 };
 
+const STATUS_LABELS: Record<string, { label: string; tone: 'good' | 'warn' | 'muted' }> = {
+  waiting_for_you: { label: 'Waiting for you', tone: 'warn' },
+  waiting_for_opponent: { label: 'Waiting for opponent', tone: 'warn' },
+  both_ready: { label: 'Both ready', tone: 'good' },
+  result_pending: { label: 'Result pending', tone: 'muted' },
+  completed: { label: 'Completed', tone: 'good' },
+  default_win: { label: 'Default win', tone: 'muted' },
+};
+
 export default function WeeklyEventPanel() {
   const router = useRouter();
   const [cycle, setCycle] = useState<any>(null);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [assignments, setAssignments] = useState<Matchup[]>([]);
   const [progress, setProgress] = useState<Progress[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [myId, setMyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [scores, setScores] = useState<Record<string, { mine: number; opp: number }>>({});
 
   useEffect(() => {
     const user = getSessionUser();
@@ -65,6 +77,13 @@ export default function WeeklyEventPanel() {
       setAssignments(data.assignments ?? []);
       setProgress(data.progress ?? []);
       setHistory(data.history ?? []);
+      setScores((prev) => {
+        const next = { ...prev };
+        for (const item of data.assignments ?? []) {
+          if (!next[item.id]) next[item.id] = { mine: Math.max(1, item.unresolved_rounds ?? 1), opp: 0 };
+        }
+        return next;
+      });
     } catch (e: any) {
       if (!silent) setError(e.message ?? 'Failed to load weekly event.');
     } finally {
@@ -72,14 +91,14 @@ export default function WeeklyEventPanel() {
     }
   }
 
-  async function confirm(assignmentId: string) {
+  async function confirm(matchupId: string) {
     if (!myId) return;
-    setBusyId(assignmentId);
+    setBusyId(matchupId);
     try {
       const res = await fetch('/api/weekly/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': myId },
-        body: JSON.stringify({ assignment_id: assignmentId }),
+        body: JSON.stringify({ assignment_id: matchupId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Failed to confirm ready.');
@@ -91,153 +110,159 @@ export default function WeeklyEventPanel() {
     }
   }
 
-  async function report(assignmentId: string, winnerId: string) {
+  async function report(matchup: Matchup) {
     if (!myId) return;
-    setBusyId(assignmentId);
+    const score = scores[matchup.id] ?? { mine: 0, opp: 0 };
+
+    setBusyId(matchup.id);
     try {
       const res = await fetch('/api/weekly/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-user-id': myId },
-        body: JSON.stringify({ assignment_id: assignmentId, winner_id: winnerId }),
+        body: JSON.stringify({
+          assignment_id: matchup.id,
+          my_round_wins: score.mine,
+          opponent_round_wins: score.opp,
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Failed to report match.');
+      if (!res.ok) throw new Error(data.error ?? 'Failed to submit matchup result.');
       await load(myId, true);
     } catch (e: any) {
-      alert(e.message ?? 'Failed to report match.');
+      alert(e.message ?? 'Failed to submit matchup result.');
     } finally {
       setBusyId(null);
     }
   }
 
   const progressMap = useMemo(() => Object.fromEntries(progress.map((p) => [p.pvp_type, p])), [progress]);
+  const selectedTypes: string[] = cycle?.selected_pvp_types ?? [];
   const remainingMs = cycle ? new Date(cycle.end_at).getTime() - Date.now() : 0;
   const remainingText =
     remainingMs <= 0
       ? 'Ended'
       : `${Math.floor(remainingMs / (1000 * 60 * 60 * 24))}d ${Math.floor((remainingMs / (1000 * 60 * 60)) % 24)}h`;
 
-  if (loading) {
-    return (
-      <div className="card" style={{ padding: 32, textAlign: 'center' }}>
-        <span className="font-pixel" style={{ color: 'var(--color-muted)' }}>Loading weekly event…</span>
-      </div>
-    );
-  }
+  const sections = useMemo(() => {
+    return selectedTypes.map((type) => ({
+      type,
+      cards: assignments.filter((a) => a.pvp_type === type),
+      progress: progressMap[type],
+    }));
+  }, [selectedTypes, assignments, progressMap]);
 
-  if (error) {
-    return (
-      <div className="card" style={{ padding: 24 }}>
-        <p style={{ color: 'var(--color-red)' }}>{error}</p>
-      </div>
-    );
-  }
+  const totalRequired = selectedTypes.reduce((acc, type) => acc + (progressMap[type]?.required_rounds ?? cycle?.required_rounds_per_type ?? 3), 0);
+  const totalDone = selectedTypes.reduce((acc, type) => acc + (progressMap[type]?.completed_rounds ?? 0), 0);
 
-  if (!cycle) {
-    return (
-      <div className="card" style={{ padding: 24 }}>
-        <p style={{ color: 'var(--color-muted)' }}>No active weekly cycle yet.</p>
-      </div>
-    );
-  }
-
-  const selectedTypes: string[] = cycle.selected_pvp_types ?? [];
+  if (loading) return <div className="card" style={{ padding: 32, textAlign: 'center' }}><span className="font-pixel" style={{ color: 'var(--color-muted)' }}>Loading weekly event…</span></div>;
+  if (error) return <div className="card" style={{ padding: 24 }}><p style={{ color: 'var(--color-red)' }}>{error}</p></div>;
+  if (!cycle) return <div className="card" style={{ padding: 24 }}><p style={{ color: 'var(--color-muted)' }}>No weekly cycle found.</p></div>;
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <div className="card" style={{ padding: 20 }}>
         <p className="font-mono page-kicker">Weekly Required PvP Event</p>
-        <h2 className="font-pixel" style={{ marginTop: 8, color: 'var(--color-green)', fontSize: '1.5rem' }}>Cycle #{cycle.id.slice(0, 8)}</h2>
-        <p style={{ color: 'var(--color-text-dim)', marginTop: 8 }}>Ends {new Date(cycle.end_at).toLocaleString()} ({remainingText} remaining)</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-          {selectedTypes.map((type) => (
-            <span key={type} className="badge badge-gold">{type}</span>
-          ))}
+        <h2 className="font-pixel" style={{ marginTop: 8, color: 'var(--color-green)', fontSize: '1.4rem' }}>Cycle #{cycle.id.slice(0, 8)}</h2>
+        <p style={{ color: 'var(--color-text-dim)', marginTop: 6 }}>Status: <b>{cycle.status}</b> · Ends {new Date(cycle.end_at).toLocaleString()} ({remainingText} remaining)</p>
+        <p style={{ color: 'var(--color-text-dim)', marginTop: 4 }}>Overall progress: {totalDone}/{totalRequired} resolved rounds</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+          {selectedTypes.map((type) => <span key={type} className="badge badge-gold">{type}</span>)}
         </div>
       </div>
 
-      <div className="card" style={{ padding: 20 }}>
-        <h3 className="font-pixel" style={{ marginBottom: 12, fontSize: '1.1rem' }}>Your required progress</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 10 }}>
-          {selectedTypes.map((type) => {
-            const row = progressMap[type];
-            const done = row?.completed_rounds ?? 0;
-            const required = row?.required_rounds ?? cycle.required_rounds_per_type ?? 3;
-            const pct = Math.min(100, Math.round((done / required) * 100));
-            return (
-              <div key={type} style={{ border: '1px solid var(--color-border)', borderRadius: 10, padding: 12 }}>
-                <p style={{ fontWeight: 700, marginBottom: 8 }}>{type}</p>
-                <p className="font-mono" style={{ fontSize: '0.8rem', marginBottom: 8 }}>{done}/{required} rounds</p>
-                <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-                  <div style={{ width: `${pct}%`, height: '100%', background: 'var(--color-green)' }} />
-                </div>
-                {row?.penalty_applied && <p style={{ marginTop: 8, color: 'var(--color-red)', fontSize: '0.75rem' }}>Penalty applied</p>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      {sections.map(({ type, cards, progress: row }) => {
+        const required = row?.required_rounds ?? cycle.required_rounds_per_type ?? 3;
+        const done = row?.completed_rounds ?? 0;
+        const pct = Math.min(100, Math.round((done / required) * 100));
 
-      <div className="card" style={{ padding: 20 }}>
-        <h3 className="font-pixel" style={{ marginBottom: 12, fontSize: '1.1rem' }}>Assigned weekly matches</h3>
-        <div style={{ display: 'grid', gap: 10 }}>
-          {assignments.length === 0 && <p style={{ color: 'var(--color-muted)' }}>No assignments yet. This can happen with very low player counts.</p>}
-          {assignments.map((a) => {
-            const meIsA = myId === a.player_a;
-            const meName = meIsA ? a.player_a_name : a.player_b_name;
-            const oppName = meIsA ? a.player_b_name : a.player_a_name;
-            const myReady = meIsA ? a.a_ready_at : a.b_ready_at;
-            const oppReady = meIsA ? a.b_ready_at : a.a_ready_at;
-            const resolved = a.status === 'completed' || a.status === 'expired';
-            return (
-              <div key={a.id} style={{ border: '1px solid var(--color-border)', borderRadius: 10, padding: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <p style={{ fontWeight: 700 }}>{a.pvp_type} · Round {a.round_number}</p>
-                  <span className="badge badge-muted">{a.status}</span>
-                </div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-dim)', marginTop: 4 }}>{meName} vs {oppName}</p>
-                <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', marginTop: 6 }}>
-                  Ready: You {myReady ? '✅' : '⏳'} · Opponent {oppReady ? '✅' : '⏳'}
-                  {a.ready_by_at ? ` · Timeout ${new Date(a.ready_by_at).toLocaleString()}` : ''}
-                </p>
-                {a.winner && (
-                  <p style={{ fontSize: '0.78rem', marginTop: 6, color: a.winner === myId ? 'var(--color-green)' : 'var(--color-text-dim)' }}>
-                    Winner: {a.winner === a.player_a ? a.player_a_name : a.player_b_name}
-                    {a.win_type === 'default' ? ' (default win)' : ''}
-                  </p>
-                )}
-                {!resolved && (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                    {!myReady && (
-                      <button disabled={busyId === a.id} className="btn btn-ghost" onClick={() => confirm(a.id)}>
-                        {busyId === a.id ? 'Saving…' : 'Confirm ready'}
-                      </button>
-                    )}
-                    {myReady && oppReady && (
-                      <>
-                        <button disabled={busyId === a.id} className="btn btn-primary" onClick={() => report(a.id, a.player_a)}>
-                          {a.player_a_name} won
-                        </button>
-                        <button disabled={busyId === a.id} className="btn btn-primary" onClick={() => report(a.id, a.player_b)}>
-                          {a.player_b_name} won
-                        </button>
-                      </>
+        return (
+          <div key={type} className="card" style={{ padding: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <h3 className="font-pixel" style={{ fontSize: '1.05rem' }}>{type.toUpperCase()}</h3>
+              <p className="font-mono" style={{ color: 'var(--color-text-dim)', fontSize: '0.78rem' }}>{done}/{required} rounds completed</p>
+            </div>
+            <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginTop: 8, marginBottom: 12 }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: 'var(--color-green)' }} />
+            </div>
+
+            <div style={{ display: 'grid', gap: 10 }}>
+              {cards.length === 0 && <p style={{ color: 'var(--color-muted)' }}>No matchup cards for this type in this cycle.</p>}
+              {cards.map((card) => {
+                const status = STATUS_LABELS[card.status] ?? STATUS_LABELS.result_pending;
+                const score = scores[card.id] ?? { mine: 0, opp: 0 };
+                const maxRounds = Math.max(card.unresolved_rounds, 0);
+
+                return (
+                  <div key={card.id} style={{ border: '1px solid var(--color-border)', borderRadius: 10, padding: 12, display: 'grid', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                      <p style={{ fontWeight: 700 }}>{card.player_a_name} vs {card.player_b_name}</p>
+                      <span className={`badge ${status.tone === 'good' ? 'badge-green' : status.tone === 'warn' ? 'badge-gold' : 'badge-muted'}`}>{status.label}</span>
+                    </div>
+
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>
+                      Ready: You {card.my_ready ? '✅' : '⏳'} · Opponent {card.opponent_ready ? '✅' : '⏳'}
+                      {card.ready_by_at ? ` · Deadline ${new Date(card.ready_by_at).toLocaleString()}` : ''}
+                    </p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-dim)' }}>
+                      Result: {card.my_wins}-{card.opponent_wins} · Remaining rounds in this matchup: {card.unresolved_rounds}
+                    </p>
+
+                    {card.unresolved_rounds > 0 && (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {!card.my_ready && (
+                          <button disabled={busyId === card.id} className="btn btn-ghost" onClick={() => confirm(card.id)}>
+                            {busyId === card.id ? 'Saving…' : 'Confirm ready for matchup'}
+                          </button>
+                        )}
+
+                        {card.my_ready && card.opponent_ready && (
+                          <>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(130px,1fr))', gap: 8 }}>
+                              <label style={{ display: 'grid', gap: 4, fontSize: '0.8rem' }}>
+                                My round wins
+                                <input
+                                  className="input"
+                                  type="number"
+                                  min={0}
+                                  max={maxRounds}
+                                  value={score.mine}
+                                  onChange={(e) => setScores((prev) => ({ ...prev, [card.id]: { ...score, mine: Math.max(0, Number(e.target.value) || 0) } }))}
+                                />
+                              </label>
+                              <label style={{ display: 'grid', gap: 4, fontSize: '0.8rem' }}>
+                                Opponent round wins
+                                <input
+                                  className="input"
+                                  type="number"
+                                  min={0}
+                                  max={maxRounds}
+                                  value={score.opp}
+                                  onChange={(e) => setScores((prev) => ({ ...prev, [card.id]: { ...score, opp: Math.max(0, Number(e.target.value) || 0) } }))}
+                                />
+                              </label>
+                            </div>
+                            <button disabled={busyId === card.id} className="btn btn-primary" onClick={() => report(card)}>
+                              {busyId === card.id ? 'Submitting…' : 'Submit matchup result'}
+                            </button>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
 
       <div className="card" style={{ padding: 20 }}>
         <h3 className="font-pixel" style={{ marginBottom: 8, fontSize: '1rem' }}>Rules</h3>
         <ul style={{ paddingLeft: 18, color: 'var(--color-text-dim)', lineHeight: 1.7 }}>
-          <li>Exactly 3 PvP types are selected globally each week.</li>
-          <li>You need 3 completed rounds per selected type.</li>
-          <li>If one player confirms ready and the other does not within 24h, a default win is awarded automatically.</li>
-          <li>Unfinished required types at cycle end trigger a type-specific Elo penalty.</li>
+          <li>Weekly page now uses matchup cards (one readiness + one result submission per matchup).</li>
+          <li>Submit matchup result as round wins for both players (e.g. 3-1).</li>
+          <li>Each reported round win is recorded as a normal confirmed duel for rankings, Elo, and profile history.</li>
+          <li>If one player confirms readiness and the other does not within 24h, default wins resolve the pending rounds.</li>
         </ul>
       </div>
 

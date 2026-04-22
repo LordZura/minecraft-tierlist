@@ -26,6 +26,11 @@ type Assignment = {
   win_type: 'played' | 'default' | 'no_ready' | null;
 };
 
+type MatchupResultInput = {
+  myRoundWins: number;
+  opponentRoundWins: number;
+};
+
 const MS_IN_HOUR = 60 * 60 * 1000;
 const MS_IN_DAY = 24 * MS_IN_HOUR;
 const MS_IN_WEEK = 7 * MS_IN_DAY;
@@ -282,25 +287,84 @@ async function ensureCycleAssignments(supabase: SB, cycle: WeeklyCycle) {
   }
 }
 
-async function incrementProgressForWinner(supabase: SB, assignment: Assignment, winnerId: string, resolvedAt: string) {
-  const { data: progress } = await supabase
-    .from('weekly_pvp_progress')
-    .select('*')
-    .eq('cycle_id', assignment.cycle_id)
-    .eq('user_id', winnerId)
-    .eq('pvp_type', assignment.pvp_type)
-    .maybeSingle();
+async function incrementProgressForParticipants(supabase: SB, assignment: Assignment, resolvedAt: string) {
+  for (const userId of [assignment.player_a, assignment.player_b]) {
+    const { data: progress } = await supabase
+      .from('weekly_pvp_progress')
+      .select('*')
+      .eq('cycle_id', assignment.cycle_id)
+      .eq('user_id', userId)
+      .eq('pvp_type', assignment.pvp_type)
+      .maybeSingle();
 
-  if (!progress) return;
-  const required = progress.required_rounds ?? REQUIRED_ROUNDS;
-  const nextRounds = Math.min(required, (progress.completed_rounds ?? 0) + 1);
+    if (!progress) continue;
+    const required = progress.required_rounds ?? REQUIRED_ROUNDS;
+    const nextRounds = Math.min(required, (progress.completed_rounds ?? 0) + 1);
+
+    await supabase
+      .from('weekly_pvp_progress')
+      .update({ completed_rounds: nextRounds, completed_at: nextRounds >= required ? resolvedAt : null })
+      .eq('cycle_id', assignment.cycle_id)
+      .eq('user_id', userId)
+      .eq('pvp_type', assignment.pvp_type);
+  }
+}
+
+async function upsertWeeklyFightLog(supabase: SB, assignment: Assignment, winnerId: string, winType: 'played' | 'default') {
+  const loserId = winnerId === assignment.player_a ? assignment.player_b : assignment.player_a;
+  const score = winnerId === assignment.player_a ? '1-0' : '0-1';
+  const source = winType === 'default' ? 'weekly_default' : 'weekly_round';
+
+  await supabase.from('fight_logs').upsert(
+    {
+      weekly_assignment_id: assignment.id,
+      player1: assignment.player_a,
+      player2: assignment.player_b,
+      winner: winnerId,
+      pvp_type: assignment.pvp_type,
+      challenger_rounds_won: winnerId === assignment.player_a ? 1 : 0,
+      challenged_rounds_won: winnerId === assignment.player_b ? 1 : 0,
+      score,
+      is_confirmed: true,
+      rejected: false,
+      created_by: winnerId,
+      source,
+    },
+    { onConflict: 'weekly_assignment_id' },
+  );
+
+  await notifyUsers(
+    supabase,
+    [winnerId, loserId],
+    'weekly_round_recorded',
+    (userId) =>
+      userId === winnerId
+        ? `Weekly ${assignment.pvp_type}: 1 round win recorded for ranking/stat updates.`
+        : `Weekly ${assignment.pvp_type}: 1 round loss recorded for ranking/stat updates.`,
+    assignment.id,
+    `weekly_round_recorded:${assignment.id}`,
+  );
+}
+
+export function getMatchupKey(assignment: Pick<Assignment, 'pvp_type' | 'player_a' | 'player_b'>) {
+  const [u1, u2] = [assignment.player_a, assignment.player_b].sort();
+  return `${assignment.pvp_type}:${u1}:${u2}`;
+}
+
+async function maybeFinalizeCycleEarly(supabase: SB, cycleId: string) {
+  const { count } = await supabase
+    .from('weekly_pvp_assignments')
+    .select('id', { count: 'exact', head: true })
+    .eq('cycle_id', cycleId)
+    .in('status', ['pending', 'ready']);
+
+  if ((count ?? 0) > 0) return;
 
   await supabase
-    .from('weekly_pvp_progress')
-    .update({ completed_rounds: nextRounds, completed_at: nextRounds >= required ? resolvedAt : null })
-    .eq('cycle_id', assignment.cycle_id)
-    .eq('user_id', winnerId)
-    .eq('pvp_type', assignment.pvp_type);
+    .from('weekly_pvp_cycles')
+    .update({ status: 'completed', finalized_at: nowIso() })
+    .eq('id', cycleId)
+    .neq('status', 'completed');
 }
 
 export async function resolveWeeklyTimeouts(supabase: SB, cycleId: string) {
@@ -355,6 +419,8 @@ export async function resolveWeeklyTimeouts(supabase: SB, cycleId: string) {
 
     await supabase.from('weekly_pvp_assignments').update({ resolved_at: nowISO }).eq('id', row.id);
   }
+
+  await maybeFinalizeCycleEarly(supabase, cycleId);
 }
 
 export async function markWeeklyMatchComplete(
@@ -381,7 +447,57 @@ export async function markWeeklyMatchComplete(
 
   if (update.error || !update.data) return;
 
-  await incrementProgressForWinner(supabase, update.data as Assignment, winnerId, nowISO);
+  await incrementProgressForParticipants(supabase, update.data as Assignment, nowISO);
+  await upsertWeeklyFightLog(supabase, update.data as Assignment, winnerId, winType);
+  await maybeFinalizeCycleEarly(supabase, assignment.cycle_id);
+}
+
+export async function submitWeeklyMatchupResult(
+  supabase: SB,
+  actorId: string,
+  assignmentId: string,
+  input: MatchupResultInput,
+) {
+  const { data: assignment } = await supabase.from('weekly_pvp_assignments').select('*').eq('id', assignmentId).single();
+  if (!assignment) throw new Error('Assignment not found.');
+  if (assignment.status === 'completed' || assignment.status === 'expired') throw new Error('Assignment already resolved.');
+  if (![assignment.player_a, assignment.player_b].includes(actorId)) throw new Error('Forbidden.');
+
+  const { data: rows } = await supabase
+    .from('weekly_pvp_assignments')
+    .select('*')
+    .eq('cycle_id', assignment.cycle_id)
+    .eq('pvp_type', assignment.pvp_type)
+    .in('status', ['pending', 'ready']);
+
+  const matchupRows = (rows ?? [])
+    .filter((row: Assignment) => getMatchupKey(row) === getMatchupKey(assignment))
+    .sort((a: Assignment, b: Assignment) => a.round_number - b.round_number);
+
+  if (matchupRows.length === 0) throw new Error('No unresolved rounds left in this matchup.');
+  if (!matchupRows.every((row: Assignment) => row.a_ready_at && row.b_ready_at)) {
+    throw new Error('Both players must confirm ready first.');
+  }
+
+  const totalReported = input.myRoundWins + input.opponentRoundWins;
+  if (totalReported !== matchupRows.length) {
+    throw new Error(`Reported rounds (${totalReported}) must equal unresolved rounds (${matchupRows.length}).`);
+  }
+
+  const actorIsA = actorId === assignment.player_a;
+  const actorWins = input.myRoundWins;
+  const opponentWins = input.opponentRoundWins;
+
+  const winnerIds = [
+    ...Array.from({ length: actorWins }, () => (actorIsA ? assignment.player_a : assignment.player_b)),
+    ...Array.from({ length: opponentWins }, () => (actorIsA ? assignment.player_b : assignment.player_a)),
+  ];
+
+  for (let i = 0; i < matchupRows.length; i += 1) {
+    await markWeeklyMatchComplete(supabase, matchupRows[i].id, winnerIds[i], 'played');
+  }
+
+  await maybeFinalizeCycleEarly(supabase, assignment.cycle_id);
 }
 
 export async function finalizeExpiredCycles(supabase: SB, now = new Date()) {
