@@ -8,9 +8,17 @@ export async function getRequestUser(request: NextRequest) {
   const supabase = await createSupabaseRouteClient();
   const { data } = await supabase
     .from('users')
-    .select('id, username, is_admin')
+    .select('id, username, is_admin, is_super_admin')
     .eq('id', userId)
     .single();
 
   return data ?? null;
+}
+
+export function ensureAdmin(user: any) {
+  return !!user?.is_admin;
+}
+
+export function ensureSuperAdmin(user: any) {
+  return !!user?.is_super_admin;
 }

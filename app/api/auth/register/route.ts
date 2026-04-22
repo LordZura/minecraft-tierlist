@@ -72,8 +72,9 @@ export async function POST(req: Request) {
         username,
         password_hash: passwordHash,
         is_admin: false,
+        is_super_admin: false,
       })
-      .select("id, username, is_admin")
+      .select("id, username, is_admin, is_super_admin")
       .single();
 
     if (insertError) {

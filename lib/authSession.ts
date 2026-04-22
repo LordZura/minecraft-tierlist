@@ -2,6 +2,7 @@ export type SessionUser = {
   id: string;
   username: string;
   is_admin: boolean;
+  is_super_admin?: boolean;
 };
 
 const STORAGE_KEY = 'mct_user';

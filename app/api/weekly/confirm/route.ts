@@ -13,8 +13,10 @@ export async function POST(req: NextRequest) {
 
   const { data: assignment } = await supabase.from('weekly_pvp_assignments').select('*').eq('id', assignment_id).single();
   if (!assignment) return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
-  if (assignment.status === 'completed' || assignment.status === 'expired') return NextResponse.json({ error: 'Assignment already resolved' }, { status: 400 });
+  if (assignment.status === 'completed' || assignment.status === 'expired' || assignment.status === 'cancelled') return NextResponse.json({ error: 'Assignment already resolved' }, { status: 400 });
   if (assignment.player_a !== user.id && assignment.player_b !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  const { data: cycle } = await supabase.from('weekly_pvp_cycles').select('id,status').eq('id', assignment.cycle_id).maybeSingle();
+  if (!cycle || cycle.status !== 'active') return NextResponse.json({ error: 'Weekly cycle is not active.' }, { status: 400 });
 
   const now = new Date().toISOString();
   const meIsA = assignment.player_a === user.id;
