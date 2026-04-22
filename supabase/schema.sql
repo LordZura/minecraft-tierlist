@@ -50,6 +50,8 @@ create table public.fight_logs (
   player2 uuid not null references public.users(id) on delete cascade,
   winner uuid not null references public.users(id) on delete cascade,
   pvp_type text not null,
+  challenger_rounds_won integer not null default 0,
+  challenged_rounds_won integer not null default 0,
   score text,
   is_confirmed boolean not null default false,
   rejected boolean not null default false,
@@ -73,12 +75,14 @@ create table public.challenges (
   challenged uuid not null references public.users(id) on delete cascade,
   status text not null default 'pending',
   winner uuid references public.users(id) on delete set null,
+  pvp_type text,
   challenger_wins integer not null default 0,
   challenged_wins integer not null default 0,
   created_at timestamptz not null default now(),
   completed_at timestamptz,
   constraint challenges_players_distinct_chk check (challenger <> challenged),
   constraint challenges_status_chk check (status in ('pending','accepted','rejected','completed')),
+  constraint challenges_pvp_type_chk check (pvp_type is null or pvp_type in ('crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow')),
   constraint challenges_win_counts_chk check (challenger_wins >= 0 and challenged_wins >= 0 and challenger_wins <= 10 and challenged_wins <= 10),
   constraint challenges_completed_winner_chk check (
     (status <> 'completed')
@@ -98,16 +102,64 @@ create table public.challenge_matches (
   match_number integer not null,
   winner uuid not null references public.users(id) on delete cascade,
   pvp_type text not null,
+  challenger_rounds_won integer not null default 0,
+  challenged_rounds_won integer not null default 0,
   score text,
   created_at timestamptz not null default now(),
   constraint challenge_matches_match_number_chk check (match_number between 1 and 10),
   constraint challenge_matches_pvp_type_chk check (pvp_type in ('crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow')),
+  constraint challenge_matches_rounds_chk check (challenger_rounds_won >= 0 and challenged_rounds_won >= 0),
   unique (challenge_id, match_number)
 );
 
 create index challenge_matches_challenge_idx on public.challenge_matches(challenge_id);
 create index challenge_matches_winner_idx on public.challenge_matches(winner);
 create index challenge_matches_created_at_idx on public.challenge_matches(created_at desc);
+
+
+
+-- ADMIN USER OVERRIDES (legacy absolute overrides)
+create table public.user_admin_overrides (
+  user_id uuid primary key references public.users(id) on delete cascade,
+  total_points_override integer,
+  total_wins_override integer,
+  total_losses_override integer,
+  elo_overall_override integer,
+  elo_average_override integer,
+  elo_crystal_override integer,
+  elo_sword_override integer,
+  elo_axe_override integer,
+  elo_uhc_override integer,
+  elo_manhunt_override integer,
+  elo_mace_override integer,
+  elo_smp_override integer,
+  elo_cart_override integer,
+  elo_bow_override integer,
+  updated_at timestamptz not null default now()
+);
+
+-- ADMIN ADJUSTMENTS (auditable delta edits)
+create table public.admin_user_adjustments (
+  id uuid primary key default gen_random_uuid(),
+  admin_id uuid not null references public.users(id) on delete cascade,
+  user_id uuid not null references public.users(id) on delete cascade,
+  points_delta integer not null default 0,
+  elo_overall_delta integer not null default 0,
+  elo_average_delta integer not null default 0,
+  elo_crystal_delta integer not null default 0,
+  elo_sword_delta integer not null default 0,
+  elo_axe_delta integer not null default 0,
+  elo_uhc_delta integer not null default 0,
+  elo_manhunt_delta integer not null default 0,
+  elo_mace_delta integer not null default 0,
+  elo_smp_delta integer not null default 0,
+  elo_cart_delta integer not null default 0,
+  elo_bow_delta integer not null default 0,
+  reason text not null,
+  created_at timestamptz not null default now()
+);
+
+create index admin_user_adjustments_user_idx on public.admin_user_adjustments(user_id, created_at desc);
 
 -- NOTIFICATIONS
 create table public.notifications (
@@ -210,3 +262,5 @@ alter table public.challenges disable row level security;
 alter table public.challenge_matches disable row level security;
 alter table public.notifications disable row level security;
 alter table public.admin_logs disable row level security;
+alter table public.user_admin_overrides disable row level security;
+alter table public.admin_user_adjustments disable row level security;

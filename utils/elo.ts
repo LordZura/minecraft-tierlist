@@ -1,5 +1,4 @@
-export const PVP_TYPES = ['crystal','sword','axe','uhc','manhunt','mace','smp','cart','bow'] as const;
-export type PvpType = typeof PVP_TYPES[number];
+import { PVP_TYPES, type PvpType } from '@/lib/pvp';
 
 export type EloEvent = {
   playerA: string;

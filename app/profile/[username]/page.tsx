@@ -5,7 +5,8 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { calcChallengePoints, calcFightLogPoints } from '@/lib/points';
-import { computeElo, PVP_TYPES, type EloEvent, type PvpType } from '@/utils/elo';
+import { computeElo, type EloEvent } from '@/utils/elo';
+import { PVP_TYPES, type PvpType } from '@/lib/pvp';
 
 type Profile = {
   id: string;
