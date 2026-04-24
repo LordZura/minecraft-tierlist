@@ -16,7 +16,7 @@ export async function getRequestUser(request: NextRequest) {
 }
 
 export function ensureAdmin(user: any) {
-  return !!user?.is_admin;
+  return !!(user?.is_admin || user?.is_super_admin);
 }
 
 export function ensureSuperAdmin(user: any) {

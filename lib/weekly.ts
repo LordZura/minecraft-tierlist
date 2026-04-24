@@ -355,6 +355,21 @@ async function maybeFinalizeCycleEarly(supabase: SB, cycleId: string) {
   const { data: cycle } = await supabase.from('weekly_pvp_cycles').select('status').eq('id', cycleId).maybeSingle();
   if (!cycle || cycle.status !== 'active') return;
 
+  const { count: assignmentCount } = await supabase
+    .from('weekly_pvp_assignments')
+    .select('id', { count: 'exact', head: true })
+    .eq('cycle_id', cycleId);
+
+  if ((assignmentCount ?? 0) === 0) return;
+
+  const { count: incompleteProgressCount } = await supabase
+    .from('weekly_pvp_progress')
+    .select('cycle_id', { count: 'exact', head: true })
+    .eq('cycle_id', cycleId)
+    .filter('completed_rounds', 'lt', 'required_rounds');
+
+  if ((incompleteProgressCount ?? 0) > 0) return;
+
   const { count } = await supabase
     .from('weekly_pvp_assignments')
     .select('id', { count: 'exact', head: true })
