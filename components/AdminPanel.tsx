@@ -17,6 +17,7 @@ const ENTITY_LABELS: Record<EntityKey, string> = {
 
 export function AdminPanel() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
@@ -31,9 +32,30 @@ export function AdminPanel() {
 
   useEffect(() => {
     const session = getSessionUser();
-    setUserId(session?.id ?? null);
-    setIsAdmin(!!session?.is_admin);
-    setIsSuperAdmin(!!session?.is_super_admin);
+    const nextUserId = session?.id ?? null;
+    setUserId(nextUserId);
+
+    if (!nextUserId) {
+      setIsAdmin(false);
+      setIsSuperAdmin(false);
+      setAuthLoading(false);
+      return;
+    }
+
+    void (async () => {
+      try {
+        const res = await fetch('/api/admin/me', { headers: { 'x-user-id': nextUserId } });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error ?? 'Failed to load admin permissions.');
+        setIsAdmin(!!payload?.user?.is_admin);
+        setIsSuperAdmin(!!payload?.user?.is_super_admin);
+      } catch {
+        setIsAdmin(false);
+        setIsSuperAdmin(false);
+      } finally {
+        setAuthLoading(false);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -125,6 +147,10 @@ export function AdminPanel() {
   }
 
   const preview = useMemo(() => rows.slice(0, 25), [rows]);
+
+  if (authLoading) {
+    return <div className="card" style={{ padding: 24 }}>Checking admin access…</div>;
+  }
 
   if (!isAdmin) {
     return <div className="card" style={{ padding: 24 }}>Admin access required.</div>;

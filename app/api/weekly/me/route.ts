@@ -80,7 +80,10 @@ export async function GET(req: NextRequest) {
       }
 
       const item = acc[key];
-      if (row.status === 'pending' || row.status === 'ready') item.unresolved_rounds += 1;
+      if (row.status === 'pending' || row.status === 'ready') {
+        item.unresolved_rounds += 1;
+        item.id = row.id;
+      }
       if (row.status === 'completed') {
         item.completed_rounds += 1;
         const winnerIsMe = row.winner === user.id;
